@@ -7,25 +7,27 @@ import {
   buildRoundRobin, buildKnockout, buildRRPlayoffs, buildOrderOfPlay, uid,
 } from './engine.js';
 
-// Placeholder names so the app looks real on first run. Replace them before
-// the event — either by editing this file and re-seeding, or (once built)
-// through Admin -> Players.
+// The real roster. Order is seed order — pair 1 is the top seed, and for the
+// men's knockout that matters: with an odd count of pairs, the top seed gets
+// the bye straight to the semifinal (see buildKnockout's byte distribution).
 const WOMEN = [
-  ['Sari', 'Dewi'],
-  ['Rina', 'Putri'],
-  ['Maya', 'Indah'],
-  ['Lestari', 'Ayu'],
+  ['Augtri', 'Vebi'],
+  ['Ocha', 'Novi'],
+  ['Kheren', 'Bu Tuti'],
+  ['Puspita', 'Dhonna'],
 ];
 
+// 7 pairs, not 8 -- one bye. buildKnockout handles this (bracket of 8, seed 1
+// advances without playing); buildOrderOfPlay no longer burns a schedule slot
+// on a bye match, so the day's real match count and finish time both shift.
 const MEN = [
-  ['Budi', 'Anto'],
-  ['Rio', 'Hasan'],
-  ['Eko', 'Dimas'],
-  ['Agus', 'Bayu'],
-  ['Fajar', 'Gilang'],
-  ['Hendra', 'Irfan'],
-  ['Joko', 'Krisna'],
-  ['Lukman', 'Made'],
+  ['Irfan', 'Agoes'],
+  ['Daniel', 'Josh'],
+  ['Lucas', 'Zaky'],
+  ['Dimas', 'Lius'],
+  ['Ambo', 'Nassar'],
+  ['Krisna', 'Firman'],
+  ['Lucky', 'Kiki'],
 ];
 
 export const SCORING = {

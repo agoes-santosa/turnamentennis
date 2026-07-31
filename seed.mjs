@@ -1,20 +1,26 @@
 // seed.mjs — writes (or rewrites) the tournament into Firestore.
 //
-// Run this once before the event, and again any time you want to reset it
-// back to the placeholder data. It uses the Firebase Admin SDK, which
-// authenticates with a service account and bypasses firestore.rules entirely
-// -- that's expected: this is the one place structural data (players, teams,
-// the schedule) is allowed to be written from outside the console.
+// Run this once before the event, and again any time the roster changes. It
+// uses the Firebase Admin SDK, which authenticates with a service account and
+// bypasses firestore.rules entirely -- that's expected: this is the one place
+// structural data (players, teams, the schedule) is allowed to be written
+// from outside the console.
+//
+// Re-running is a full replace, not an append: every existing division,
+// player, team and match document is deleted first, then the current
+// js/seed-data.js content is written fresh. PINs are left untouched unless
+// you pass --admin-pin / --scorer-pin explicitly.
 //
 // Setup:
 //   1. Firebase Console -> Project Settings -> Service Accounts
 //      -> Generate new private key. Save the file as service-account.json
 //      in this folder. (It's in .gitignore -- never commit it.)
 //   2. npm install
-//   3. node seed.mjs --admin-pin=YOUR6DIGITS --scorer-pin=YOUR4DIGITS
+//   3. node seed.mjs                                   -- keeps existing PINs
+//      node seed.mjs --admin-pin=170826 --scorer-pin=1717   -- sets/changes PINs
 //
-// Both PINs are hashed with SHA-256 before they touch Firestore, and the
-// plaintext is never written anywhere or logged back to the terminal.
+// PINs are hashed with SHA-256 before they touch Firestore, and the plaintext
+// is never written anywhere or logged back to the terminal.
 
 import { readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -37,11 +43,6 @@ if (!existsSync('./service-account.json')) {
 
 const adminPin = args['admin-pin'];
 const scorerPin = args['scorer-pin'];
-if (!adminPin) {
-  console.error('\nUsage: node seed.mjs --admin-pin=170826 --scorer-pin=1717\n' +
-    '(scorer PIN is optional -- omit it and only the admin PIN can score)\n');
-  process.exit(1);
-}
 
 const sha256Hex = (text) => createHash('sha256').update(text, 'utf8').digest('hex');
 
@@ -49,9 +50,26 @@ const serviceAccount = JSON.parse(readFileSync('./service-account.json', 'utf8')
 initializeApp({ credential: cert(serviceAccount) });
 const db = getFirestore();
 
+async function clearCollection(path) {
+  const snap = await db.collection(path).get();
+  if (snap.empty) return 0;
+  const batch = db.batch();
+  for (const doc of snap.docs) batch.delete(doc.ref);
+  await batch.commit();
+  return snap.size;
+}
+
 async function main() {
   const { tournament, divisions, players, teams, matches } = buildSeed();
   const tid = tournament.id;
+
+  const cleared = {
+    divisions: await clearCollection(`tournaments/${tid}/divisions`),
+    players: await clearCollection(`tournaments/${tid}/players`),
+    teams: await clearCollection(`tournaments/${tid}/teams`),
+    matches: await clearCollection(`tournaments/${tid}/matches`),
+  };
+
   const batch = db.batch();
 
   // adminPin/scorerPin are local-mode-only fields on the seed object --
@@ -64,17 +82,23 @@ async function main() {
   for (const t of teams) batch.set(db.doc(`tournaments/${tid}/teams/${t.id}`), t);
   for (const m of matches) batch.set(db.doc(`tournaments/${tid}/matches/${m.id}`), m);
 
-  batch.set(db.doc(`pins/${tid}`), {
-    adminHash: sha256Hex(adminPin),
-    scorerHash: scorerPin ? sha256Hex(scorerPin) : null,
-  });
+  if (adminPin) {
+    batch.set(db.doc(`pins/${tid}`), {
+      adminHash: sha256Hex(adminPin),
+      scorerHash: scorerPin ? sha256Hex(scorerPin) : null,
+    });
+  }
 
   await batch.commit();
 
+  const clearedTotal = Object.values(cleared).reduce((a, b) => a + b, 0);
   console.log(`\nSeeded "${tournament.name}" (${matches.length} matches) into Firestore.`);
+  if (clearedTotal) {
+    console.log(`Replaced previous data: ${cleared.divisions} divisions, ${cleared.players} players, ${cleared.teams} teams, ${cleared.matches} matches.`);
+  }
   console.log(`Tournament document: tournaments/${tid}`);
-  console.log(scorerPin ? 'Admin and scorer PINs set.' : 'Admin PIN set; no scorer PIN.');
-  console.log('\nNext: fill in js/config.js with your web app config, then open index.html.\n');
+  console.log(adminPin ? (scorerPin ? 'Admin and scorer PINs set.' : 'Admin PIN set; no scorer PIN.') : 'PINs unchanged.');
+  console.log('\nOpen index.html to see it live.\n');
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });

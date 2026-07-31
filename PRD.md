@@ -5,6 +5,8 @@
 **Event:** Turnamen 17-an Tennis Casman
 **Target:** live for 17 August 2026
 
+**Changes in v1.1:** Real roster in. Men's came in at 7 pairs, not 8 — an odd field, so the bracket gives the top seed (Irfan/Agoes) a bye straight to the semifinal. `buildOrderOfPlay` was fixed so a bye no longer burns a real 30-minute slot (it has no match to play — the result is already known when the bracket is built). Net effect: **15 real matches, not 16**, day finishes **16:15, not 16:45**. The §4 walkthrough below still shows the original 8-pair planning exercise — the design it establishes (interleaving, dependency ordering, rest protection) is unchanged; only the headcount is. If an 8th men's pair ever shows up, the field returns to a clean 8 and the schedule reverts to the numbers below.
+
 **Changes in v1.0:** Event named and dated. One day confirmed. Both divisions get a bronze match and a final — 16 matches total, 30-minute slots, 08:00–16:45. Women's champion decided on court rather than by points (§4.4). Pairs display as `Player A / Player B`.
 
 **Changes in v0.3:** Real event parameters — 1 court, 4 women's pairs (RR), 8 men's pairs (KO). Court-grid features cut and replaced with a single linear Order of Play; a live **Now On Court** hero becomes the centrepiece. Standalone app, bilingual.
@@ -29,14 +31,14 @@ Standalone app. Firebase project ("Turnamen Tennis"), own repo, own Netlify site
 | Name | **Turnamen 17-an Tennis Casman** |
 | Date | 17 August 2026 — one day *(confirm; "17-an" implies Independence Day)* |
 | Venue | TBC |
-| Divisions | **Women's Doubles** — 4 pairs, round robin + bronze + final · **Men's Doubles** — 8 pairs, knockout + bronze |
+| Divisions | **Women's Doubles** — 4 pairs, round robin + bronze + final · **Men's Doubles** — 7 pairs, knockout + bronze |
 | Teams | Fixed pairs of two. Doubles only. Displayed as `Player A / Player B` — no team names. |
 | Courts | **1** |
-| Matches | 8 women's + 8 men's = **16** |
-| Slot length | 30 min · 08:00–16:45 including a 45-min break |
+| Matches | 8 women's + 7 men's = **15 real matches** (16 match documents — one men's quarterfinal is a bye, seed 1 advances without playing) |
+| Slot length | 30 min · 08:00–16:15 including a 45-min break |
 | Language | Bahasa Indonesia + English |
 
-Men's is "8 pairs so far," so the bracket must handle a changing entry count — 7 or 9 pairs needs byes. That logic stays in scope.
+Men's came in at 7 pairs, an odd field, so the bracket gives the top seed a bye. If an 8th pair joins later, re-seeding returns it to a clean field of 8 and the schedule reverts to 16 real matches ending 16:45.
 
 ### Goals
 
@@ -390,9 +392,9 @@ Phases 1–4 are the August build.
 ## 10. Settled
 
 - **Event:** Turnamen 17-an Tennis Casman · 17 Aug 2026 · one day · 1 court
-- **Divisions:** Women's Doubles, 4 pairs, RR + bronze + final · Men's Doubles, 8 pairs, knockout + bronze — concurrent, one tournament
+- **Divisions:** Women's Doubles, 4 pairs, RR + bronze + final · Men's Doubles, 7 pairs (real roster; one bye), knockout + bronze — concurrent, one tournament
 - **Teams:** fixed pairs of two, displayed `Player A / Player B`; no team names
-- **Matches:** 16 · 30-minute slots · 08:00–16:45 with a 45-min break
+- **Matches:** 15 real (16 documents incl. one bye) · 30-minute slots · 08:00–16:15 with a 45-min break
 - **App:** standalone, Firebase (Firestore + Anonymous Auth) + Netlify
 - **Language:** Bahasa + English
 - **Role:** Agoes sets up and hands PINs to organizers; handoff and graceful degradation are requirements

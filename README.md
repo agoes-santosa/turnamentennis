@@ -8,9 +8,11 @@ progress, organizers unlock with a PIN and enter scores on the same page.
 | Division | Format | Pairs | Matches |
 |---|---|---|---|
 | Ganda Putri | Round robin + bronze + final | 4 | 8 |
-| Ganda Putra | Knockout + bronze | 8 | 8 |
+| Ganda Putra | Knockout + bronze | 7 | 7 |
 
-16 matches, 30-minute slots, 08:00 → 16:45 with a 45-minute break.
+15 real matches, 30-minute slots, 08:00 → 16:15 with a 45-minute break. Men's
+has an odd pair count, so the top seed (Irfan/Agoes) gets a bye straight to
+the semifinal — a bye plays no match and costs no schedule slot.
 
 Requirements are in [PRD.md](PRD.md).
 
@@ -69,17 +71,22 @@ contents of `firestore.rules`, click Publish. (Or use the Firebase CLI —
 
 ### 3. Seed the event
 
-The seed script writes the tournament, both divisions, all 12 pairs, and all
-16 matches in one shot, and sets your PINs as hashes (never plaintext).
+The seed script writes the tournament, both divisions, all 11 pairs, and all
+16 match documents (15 of which are real matches — the men's bracket has one
+bye) in one shot, and sets your PINs as hashes (never plaintext).
 
 1. **Project Settings → Service Accounts → Generate new private key.** Save
    the downloaded file as `service-account.json` in this folder. It's already
    in `.gitignore` — never commit it, it's a full-access credential.
 2. `npm install`
-3. `node seed.mjs --admin-pin=YOUR6DIGITS --scorer-pin=YOUR4DIGITS`
+3. First time: `node seed.mjs --admin-pin=YOUR6DIGITS --scorer-pin=YOUR4DIGITS`
 
-Re-run it any time to reset the event back to a clean slate — it overwrites,
-it doesn't append.
+Re-run it any time the roster or schedule changes (edit `js/seed-data.js`
+first, then re-run). It's a full replace, not an append — every existing
+division, player, team, and match document is deleted and rewritten fresh, so
+there's never stale data left behind from a previous seed. Run it with no
+flags — `node seed.mjs` — to keep your existing PINs; only pass
+`--admin-pin`/`--scorer-pin` again if you actually want to change them.
 
 ### 4. Connect the app
 
@@ -154,13 +161,13 @@ something with higher stakes.
 
 ## Before the event
 
-- [ ] Replace the placeholder player names in `js/seed-data.js`, then re-run
-      `node seed.mjs` with the same PINs to push the real roster
+- [x] Real player names in `js/seed-data.js` — 4 women's pairs, 7 men's pairs
 - [ ] Confirm the date — 17 Aug 2026 is assumed from "17-an"
 - [ ] Fill in the venue name, address, and Google Maps link (also in
       `seed-data.js`, or added later once an in-app admin editor exists)
-- [ ] Confirm the men's entry count. The bracket handles 7 or 9 pairs with
-      byes, but the schedule assumes 8
+- [ ] If an 8th men's pair shows up, add it to `MEN` in `seed-data.js` and
+      re-run `node seed.mjs` — the bracket goes back to a clean field of 8
+      (no bye), which shifts the schedule later by one 30-minute slot
 - [ ] Share the link and QR (the Share button in the header) to the venue wall
 
 ---

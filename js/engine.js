@@ -391,8 +391,16 @@ export function buildOrderOfPlay(matches, opts = {}) {
     buffer = 1,
   } = opts;
 
-  const pending = [...matches].sort((a, b) => stageRank(a.stage) - stageRank(b.stage));
-  const placedAt = new Map();
+  // A bye has no match to play — nothing happens on court, so it shouldn't
+  // burn a schedule slot. Its result is known immediately (decided when the
+  // bracket was built, not on the day), so anything depending on it is
+  // satisfied from the start rather than waiting out the usual buffer.
+  const byes = matches.filter((m) => m.isBye);
+  const real = matches.filter((m) => !m.isBye);
+  for (const m of real) { m.playOrder = undefined; m.startTime = undefined; }
+
+  const pending = [...real].sort((a, b) => stageRank(a.stage) - stageRank(b.stage));
+  const placedAt = new Map(byes.map((m) => [m.id, -Infinity]));
   const queue = [];
   const divs = [...new Set(pending.map((m) => m.divisionId))];
   let prefer = 0;
@@ -412,7 +420,7 @@ export function buildOrderOfPlay(matches, opts = {}) {
     return true;
   };
 
-  while (queue.length < matches.length) {
+  while (queue.length < real.length) {
     const idx = queue.length;
     const relaxations = [
       { checkRest: true, checkBuffer: true },
