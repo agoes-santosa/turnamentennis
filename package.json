@@ -1,0 +1,12 @@
+{
+  "name": "turnamen-17an-tennis-casman",
+  "private": true,
+  "type": "module",
+  "description": "Seed script for the tournament board. The app itself (index.html) needs no build step and no npm install -- this package.json exists only for seed.mjs.",
+  "scripts": {
+    "seed": "node seed.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.5.0"
+  }
+}

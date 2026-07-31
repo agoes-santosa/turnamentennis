@@ -1,0 +1,115 @@
+// seed-data.js — the event data itself, kept free of any browser or backend
+// dependency. Only engine.js is imported, so this module runs identically in
+// the browser (via store.js) and in Node (via seed.mjs, which writes it
+// straight to Firestore with the Admin SDK).
+
+import {
+  buildRoundRobin, buildKnockout, buildRRPlayoffs, buildOrderOfPlay, uid,
+} from './engine.js';
+
+// Placeholder names so the app looks real on first run. Replace them before
+// the event — either by editing this file and re-seeding, or (once built)
+// through Admin -> Players.
+const WOMEN = [
+  ['Sari', 'Dewi'],
+  ['Rina', 'Putri'],
+  ['Maya', 'Indah'],
+  ['Lestari', 'Ayu'],
+];
+
+const MEN = [
+  ['Budi', 'Anto'],
+  ['Rio', 'Hasan'],
+  ['Eko', 'Dimas'],
+  ['Agus', 'Bayu'],
+  ['Fajar', 'Gilang'],
+  ['Hendra', 'Irfan'],
+  ['Joko', 'Krisna'],
+  ['Lukman', 'Made'],
+];
+
+export const SCORING = {
+  short: { setsToWin: 1, gamesPerSet: 4, tiebreak: true, noAd: true, label: '1 set ke 4 · no-ad' },
+  standard: { setsToWin: 1, gamesPerSet: 6, tiebreak: true, noAd: true, label: '1 set ke 6 · no-ad' },
+  final: { setsToWin: 1, gamesPerSet: 6, tiebreak: true, noAd: false, superTiebreak: true, label: '1 set ke 6 + super TB' },
+};
+
+// The Firestore document ID for the tournament. Fixed and human-readable
+// since this is a standalone, single-event app — no need for a generated id.
+export const TOURNAMENT_ID = 'turnamen-17an-tennis-casman';
+
+export function buildSeed() {
+  const tournament = {
+    id: TOURNAMENT_ID,
+    slug: TOURNAMENT_ID,
+    name: 'Turnamen 17-an Tennis Casman',
+    description: '',
+    sport: 'tennis',
+    status: 'open',
+    date: '2026-08-17',
+    venueName: '',
+    venueCity: '',
+    venueAddress: '',
+    mapsUrl: '',
+    courts: 1,
+    dailyStart: '08:00',
+    dailyEnd: '18:00',
+    slotMinutes: 30,
+    breakAfterSlot: 8,
+    breakMinutes: 45,
+    // Local-mode only. Firebase mode stores hashes in a separate `pins`
+    // collection instead — see seed.mjs and firestore.rules.
+    adminPin: '170826',
+    scorerPin: '1717',
+    locked: false,
+  };
+
+  const divisions = [
+    {
+      id: 'div_w', tournamentId: tournament.id, order: 1, key: 'womens',
+      name: { en: "Women's Doubles", id: 'Ganda Putri' },
+      short: { en: "Women's", id: 'Putri' },
+      format: 'round_robin', colour: '#e0568a', status: 'open',
+      thirdPlace: true, finalBetweenTopTwo: true,
+      scoring: SCORING.short, finalScoring: SCORING.standard,
+    },
+    {
+      id: 'div_m', tournamentId: tournament.id, order: 2, key: 'mens',
+      name: { en: "Men's Doubles", id: 'Ganda Putra' },
+      short: { en: "Men's", id: 'Putra' },
+      format: 'knockout', colour: '#2f7fe0', status: 'open',
+      thirdPlace: true, finalBetweenTopTwo: false,
+      scoring: SCORING.standard, finalScoring: SCORING.final,
+    },
+  ];
+
+  const players = [];
+  const teams = [];
+
+  const addPairs = (divisionId, pairs) => pairs.forEach(([a, b], i) => {
+    const p1 = { id: uid('p'), tournamentId: tournament.id, name: a };
+    const p2 = { id: uid('p'), tournamentId: tournament.id, name: b };
+    players.push(p1, p2);
+    teams.push({ id: uid('tm'), divisionId, player1Id: p1.id, player2Id: p2.id, seed: i + 1 });
+  });
+
+  addPairs('div_w', WOMEN);
+  addPairs('div_m', MEN);
+
+  const wTeams = teams.filter((t) => t.divisionId === 'div_w');
+  const mTeams = teams.filter((t) => t.divisionId === 'div_m');
+
+  const wRR = buildRoundRobin('div_w', wTeams.map((t) => t.id));
+  const wPlayoffs = buildRRPlayoffs('div_w', wRR, { thirdPlace: true, final: true });
+  const mKO = buildKnockout('div_m', mTeams.map((t) => t.id), { thirdPlace: true });
+
+  const matches = [...wRR, ...wPlayoffs, ...mKO];
+  buildOrderOfPlay(matches, {
+    start: tournament.dailyStart,
+    slotMinutes: tournament.slotMinutes,
+    breakAfterSlot: tournament.breakAfterSlot,
+    breakMinutes: tournament.breakMinutes,
+  });
+
+  return { tournament, divisions, players, teams, matches, log: [] };
+}

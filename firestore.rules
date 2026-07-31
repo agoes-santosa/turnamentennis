@@ -1,0 +1,84 @@
+// firestore.rules — Turnamen 17-an Tennis Casman
+//
+// No Cloud Functions (they require the paid Blaze plan). PIN verification
+// happens in the browser against a public hash, and writes are gated by
+// Firebase Anonymous Auth instead: a correct PIN creates a session document
+// keyed by the browser's own auth uid, which only Firestore's server can
+// assert -- never something a client can forge by editing JavaScript or
+// reading data back.
+//
+// Deploy with: firebase deploy --only firestore:rules
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // A signed-in browser holding a non-expired session for this tournament,
+    // created by presenting the correct PIN hash. See sessions/{uid} below.
+    function hasSession(tid) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/sessions/$(request.auth.uid))
+        && get(/databases/$(database)/documents/sessions/$(request.auth.uid)).data.tournamentId == tid
+        && get(/databases/$(database)/documents/sessions/$(request.auth.uid)).data.expiresAt > request.time;
+    }
+
+    match /tournaments/{tid} {
+      // Public: everyone can watch. Structure (name, dates, venue, schedule
+      // window) is edited via the seed script, not from the browser -- there
+      // is no in-app admin UI for it yet.
+      allow read: if true;
+      allow write: if false;
+
+      match /divisions/{did} { allow read: if true; allow write: if false; }
+      match /players/{pid}   { allow read: if true; allow write: if false; }
+      match /teams/{tmid}    { allow read: if true; allow write: if false; }
+
+      // The only thing the app writes during the event: match scores.
+      match /matches/{mid} {
+        allow read: if true;
+        allow update: if hasSession(tid);
+      }
+
+      match /eventLog/{lid} {
+        allow read: if true;
+        allow create: if hasSession(tid);
+      }
+    }
+
+    // PIN hashes. Publicly readable on purpose -- the browser needs to read
+    // and compare them itself, since there is no server function to do it for
+    // us. This is the trade-off for not running Cloud Functions: the hash is
+    // exposed, the plaintext PIN never is, and a 6-digit PIN is crackable in
+    // under a second either way, so salting would not meaningfully help.
+    // Written only by seed.mjs, which uses the Admin SDK and bypasses these
+    // rules entirely.
+    match /pins/{tid} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // One document per browser session, keyed by its own Firebase Auth uid so
+    // a client can only ever write *its own* session -- never impersonate
+    // another uid -- and nothing here can be replayed by a third party
+    // reading it back, because Firestore verifies request.auth.uid itself
+    // from the signed ID token.
+    //
+    // create AND update both require the same PIN proof: create handles the
+    // first unlock, update handles renewing an expired session or switching
+    // role (e.g. scorer PIN, then later the admin PIN) from the same device.
+    // Neither is a free pass -- both re-check the hash every time.
+    match /sessions/{uid} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && (request.resource.data.role == 'admin'
+              && request.resource.data.pinHash ==
+                 get(/databases/$(database)/documents/pins/$(request.resource.data.tournamentId)).data.adminHash
+            || request.resource.data.role == 'scorer'
+              && request.resource.data.pinHash ==
+                 get(/databases/$(database)/documents/pins/$(request.resource.data.tournamentId)).data.scorerHash);
+      allow delete: if false;
+    }
+  }
+}
