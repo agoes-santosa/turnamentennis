@@ -145,14 +145,19 @@ export function renderNowOnCourt() {
 export function renderOrderOfPlay() {
   const T = t();
   const queue = store.orderOfPlay();
-  const tn = store.state.tournament;
   const rows = queue.map((m, i) => {
     const div = store.division(m.divisionId);
-    const brk = tn.breakAfterSlot && i === tn.breakAfterSlot
-      ? `<li class="op-break">☕ ${T('break')} · ${tn.breakMinutes} min</li>` : '';
+    // Divisions now play as separate sequential blocks, not interleaved, so a
+    // new block starting is the meaningful divider -- it replaces the old
+    // single mid-day break marker.
+    const prevDiv = i > 0 ? queue[i - 1].divisionId : null;
+    const block = m.divisionId !== prevDiv
+      ? `<li class="op-block" style="--c:${div.colour}">
+           ${esc(div.name[store.lang] ?? div.name.en)} · ${T('startsAt')} ${esc(m.startTime ?? '')}
+         </li>` : '';
     const score = m.status === 'completed' ? summarise(m.score) : '';
     const winner = m.winnerTeamId;
-    return `${brk}
+    return `${block}
       <li class="op-row ${statusClass(m)}" style="--c:${div.colour}"
           data-act="open-match" data-id="${m.id}" tabindex="0" role="button">
         <div class="op-time">
@@ -316,7 +321,10 @@ export function renderInfo() {
         <dt>${T('date')}</dt><dd>${esc(tn.date)}</dd>
         <dt>${T('venue')}</dt><dd>${tn.venueName ? esc(tn.venueName) : `<span class="muted">${T('noVenue')}</span>`}</dd>
         <dt>${T('court')}</dt><dd>${tn.courts}</dd>
-        <dt>${T('schedule')}</dt><dd>${esc(tn.dailyStart)} · ${tn.slotMinutes} min/${id ? 'partai' : 'match'}</dd>
+        <dt>${T('schedule')}</dt><dd>${(tn.blocks ?? []).map((b) => {
+    const bd = store.division(b.divisionId);
+    return `${esc(bd?.name[store.lang] ?? bd?.name.en ?? '')} ${T('startsAt')} ${esc(b.start)}`;
+  }).join(' · ')} · ${tn.slotMinutes} min/${id ? 'partai' : 'match'}</dd>
       </dl>
     </section>
     <section class="card">${divs}</section>

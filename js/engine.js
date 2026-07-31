@@ -373,95 +373,90 @@ const toMin = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h *
 const toHHMM = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
 /**
- * Interleave both divisions into a single sequential queue for one court.
+ * Schedule one division's matches into a sequential run on the shared court,
+ * starting its own clock at `start`. Blocks don't overlap or interleave —
+ * each is used when divisions play in strict sequence (e.g. "finish all of
+ * Women's, then start Men's") rather than alternating.
  *
- * Constraints, in priority order:
- *  1. Dependencies — a match cannot be placed until every feeder is placed,
- *     with `buffer` slots of gap so the result is known and players are ready.
- *  2. Rest — no pair plays two consecutive slots.
- *  3. Alternation — swap divisions each slot so both progress together.
+ * Two different kinds of gap are handled, deliberately differently:
  *
- * Constraints 2 and 3 are relaxed (in that order) if nothing is otherwise
- * eligible, so the queue always completes rather than deadlocking.
+ *  - Dependency gap (`gapMinutes`, default 0): time between a match's last
+ *    feeder finishing and the match itself starting. Zero by default because
+ *    results are computed by the app the instant a score is saved — there is
+ *    no human tally to wait on, unlike a manually-kept paper standings table.
+ *
+ *  - Rest gap (`restMinutes`, default 15): only inserted when the SAME pair
+ *    would otherwise play two matches with literally zero break between them.
+ *    For a 4-team round robin this is mathematically unavoidable at least
+ *    twice — each match has exactly one "safe" non-overlapping partner match,
+ *    so some adjacent pair in any ordering must repeat a team. Rather than
+ *    let that repeat happen with zero rest, a short breather is inserted
+ *    right before it. (A knockout bracket doesn't have this problem: entrants
+ *    are disjoint within a round by construction.)
+ *
+ * A bye has no match to play, so it consumes no schedule slot at all — its
+ * result is known the moment the bracket is built, not on the day.
  */
-export function buildOrderOfPlay(matches, opts = {}) {
-  const {
-    start = '08:00', slotMinutes = 30,
-    breakAfterSlot = 8, breakMinutes = 45,
-    buffer = 1,
-  } = opts;
-
-  // A bye has no match to play — nothing happens on court, so it shouldn't
-  // burn a schedule slot. Its result is known immediately (decided when the
-  // bracket was built, not on the day), so anything depending on it is
-  // satisfied from the start rather than waiting out the usual buffer.
+function scheduleBlock(matches, { start, slotMinutes, gapMinutes = 0, restMinutes = 15 }) {
   const byes = matches.filter((m) => m.isBye);
   const real = matches.filter((m) => !m.isBye);
   for (const m of real) { m.playOrder = undefined; m.startTime = undefined; }
 
-  const pending = [...real].sort((a, b) => stageRank(a.stage) - stageRank(b.stage));
-  const placedAt = new Map(byes.map((m) => [m.id, -Infinity]));
-  const queue = [];
-  const divs = [...new Set(pending.map((m) => m.divisionId))];
-  let prefer = 0;
-
+  const doneAt = new Map(byes.map((m) => [m.id, -Infinity]));
   const teamsOf = (m) => [m.homeTeamId, m.awayTeamId].filter(Boolean);
+  const readyAt = (m) => (m.deps.length
+    ? Math.max(...m.deps.map((d) => (doneAt.get(d) ?? Infinity) + gapMinutes))
+    : -Infinity);
 
-  const eligible = (m, idx, { checkRest, checkBuffer }) => {
-    for (const d of m.deps) {
-      if (!placedAt.has(d)) return false;
-      if (checkBuffer && idx - placedAt.get(d) <= buffer) return false;
+  const pending = [...real].sort((a, b) => stageRank(a.stage) - stageRank(b.stage));
+  const placed = [];
+  let clock = toMin(start);
+
+  while (placed.length < real.length) {
+    const ready = pending.filter((m) => !doneAt.has(m.id) && readyAt(m) <= clock);
+    if (!ready.length) {
+      const upcoming = pending.filter((m) => !doneAt.has(m.id));
+      clock = Math.min(...upcoming.map(readyAt));
+      continue;
     }
-    if (checkRest && idx > 0) {
-      const prev = queue[idx - 1];
-      const mine = teamsOf(m);
-      if (mine.some((t) => teamsOf(prev).includes(t))) return false;
-    }
-    return true;
-  };
 
-  while (queue.length < real.length) {
-    const idx = queue.length;
-    const relaxations = [
-      { checkRest: true, checkBuffer: true },
-      { checkRest: false, checkBuffer: true },
-      { checkRest: false, checkBuffer: false },
-    ];
+    const prev = placed[placed.length - 1];
+    const prevTeams = prev ? teamsOf(prev) : [];
+    const safe = ready.find((m) => !teamsOf(m).some((t) => prevTeams.includes(t)));
+    const pick = safe ?? ready[0];
+    if (!safe && prev && teamsOf(pick).some((t) => prevTeams.includes(t))) clock += restMinutes;
 
-    let pick = null;
-    outer:
-    for (const rules of relaxations) {
-      // Try the preferred division first, then the others.
-      for (let k = 0; k < divs.length && !pick; k++) {
-        const div = divs[(prefer + k) % divs.length];
-        const found = pending.find((m) => m.divisionId === div && !placedAt.has(m.id) && eligible(m, idx, rules));
-        if (found) { pick = found; break outer; }
-      }
-    }
-    if (!pick) pick = pending.find((m) => !placedAt.has(m.id));
-    if (!pick) break;
-
-    placedAt.set(pick.id, idx);
-    queue.push(pick);
-    prefer = (divs.indexOf(pick.divisionId) + 1) % divs.length;
+    pick.startTime = toHHMM(clock);
+    doneAt.set(pick.id, clock + slotMinutes);
+    placed.push(pick);
+    clock += slotMinutes;
   }
 
-  // Stamp play order and clock times, inserting the break.
-  let t = toMin(start);
-  queue.forEach((m, i) => {
-    if (breakAfterSlot && i === breakAfterSlot) t += breakMinutes;
-    m.playOrder = i + 1;
-    m.startTime = toHHMM(t);
-    t += slotMinutes;
-  });
+  return { placed, endTime: toHHMM(clock) };
+}
 
-  return {
-    queue,
-    endTime: toHHMM(t),
-    breakAt: breakAfterSlot && breakAfterSlot < queue.length
-      ? toHHMM(toMin(start) + breakAfterSlot * slotMinutes)
-      : null,
-  };
+/**
+ * Build the full day's order of play from one or more sequential blocks.
+ * `blocks`: [{ divisionId, start, slotMinutes, gapMinutes?, restMinutes? }],
+ * scheduled in the order given — each is a fully separate run on the court,
+ * not interleaved with any other block. Returns the combined, globally
+ * renumbered queue plus a per-block summary (useful for a feasibility check,
+ * e.g. confirming a hard end-of-day cutoff isn't exceeded).
+ */
+export function buildOrderOfPlay(matches, blocks) {
+  const queue = [];
+  const summary = [];
+
+  for (const block of blocks) {
+    const divMatches = matches.filter((m) => m.divisionId === block.divisionId);
+    const { placed, endTime } = scheduleBlock(divMatches, block);
+    queue.push(...placed);
+    summary.push({ divisionId: block.divisionId, start: block.start, endTime, count: placed.length });
+  }
+
+  queue.forEach((m, i) => { m.playOrder = i + 1; });
+
+  return { queue, blocks: summary };
 }
 
 /** Capacity check for the feasibility line in the wizard. */

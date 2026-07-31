@@ -3,16 +3,26 @@
 Mobile-first tournament board. One link for everyone: spectators watch the
 progress, organizers unlock with a PIN and enter scores on the same page.
 
-**17 August 2026 · one court · two divisions running concurrently**
+**17 August 2026 · one court · two sequential blocks, not concurrent**
 
-| Division | Format | Pairs | Matches |
-|---|---|---|---|
-| Ganda Putri | Round robin + bronze + final | 4 | 8 |
-| Ganda Putra | Knockout + bronze | 7 | 7 |
+| Division | Format | Pairs | Matches | Starts |
+|---|---|---|---|---|
+| Ganda Putri | Round robin + bronze + final | 4 | 8 | 07:00 |
+| Ganda Putra | Knockout + bronze | 7 | 7 | 17:00 |
 
-15 real matches, 30-minute slots, 08:00 → 16:15 with a 45-minute break. Men's
-has an odd pair count, so the top seed (Irfan/Agoes) gets a bye straight to
-the semifinal — a bye plays no match and costs no schedule slot.
+Women's plays to completion first (finishes ~11:30), then a long gap, then
+Men's runs 17:00 → 20:30 — comfortably inside the court's 21:00 closing time,
+with 30 minutes of slack. Men's has an odd pair count, so the top seed
+(Irfan/Agoes) gets a bye straight to the semifinal — a bye plays no match and
+costs no schedule slot.
+
+A 4-team round robin has a mathematical quirk worth knowing: it's provably
+impossible to schedule all 6 matches back-to-back on one court without at
+least two of them repeating a pair with zero rest — every match has exactly
+one non-overlapping "safe" partner match, so some adjacent pair must always
+clash. The scheduler detects the two unavoidable clashes and inserts a
+15-minute breather right before each, rather than letting a pair walk off one
+match straight into another.
 
 Requirements are in [PRD.md](PRD.md).
 
@@ -209,8 +219,12 @@ or from Node, which is exactly what `seed.mjs` does with `buildSeed()`.
 - **The bracket auto-advances.** Scoring a semifinal fills the final and drops
   the loser into the bronze match. Byes resolve immediately.
 - **The women's playoffs seed themselves** once all six group matches are in.
-- **Order of play** interleaves both divisions on the single court, respects
-  knockout dependencies, and avoids scheduling a pair in consecutive slots.
+- **Order of play** runs as sequential blocks (`tournament.blocks` in
+  `js/seed-data.js` — currently Women's at 07:00, then Men's at 17:00), each
+  with its own start clock. Within a block, knockout dependencies are
+  respected and a pair is never scheduled into two consecutive slots unless
+  that's mathematically unavoidable (see the 4-team round robin note above),
+  in which case a short rest gap is inserted instead of a silent clash.
 
 ---
 

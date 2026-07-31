@@ -5,7 +5,9 @@
 **Event:** Turnamen 17-an Tennis Casman
 **Target:** live for 17 August 2026
 
-**Changes in v1.1:** Real roster in. Men's came in at 7 pairs, not 8 — an odd field, so the bracket gives the top seed (Irfan/Agoes) a bye straight to the semifinal. `buildOrderOfPlay` was fixed so a bye no longer burns a real 30-minute slot (it has no match to play — the result is already known when the bracket is built). Net effect: **15 real matches, not 16**, day finishes **16:15, not 16:45**. The §4 walkthrough below still shows the original 8-pair planning exercise — the design it establishes (interleaving, dependency ordering, rest protection) is unchanged; only the headcount is. If an 8th men's pair ever shows up, the field returns to a clean 8 and the schedule reverts to the numbers below.
+**Changes in v1.2:** Schedule restructured from one interleaved queue to **two sequential blocks** — all of Women's plays to completion first (07:00 start), then Men's runs separately later (17:00 start, hard cap: court closes 21:00). This removes the free byproduct the old interleaved design relied on: with a men's match always sitting between two women's matches, no pair was ever accidentally scheduled back-to-back. Standalone, a 4-team round robin is provably unable to avoid this entirely — every match has exactly one non-conflicting partner match, so at least 2 of the 6 adjacent pairs in any ordering must repeat a team. `buildOrderOfPlay` now detects those unavoidable repeats and inserts a 15-minute rest gap only where forced, leaving everything else back-to-back. §4's walkthrough below describes the superseded interleaved design; §4.5 documents the current one.
+
+**Changes in v1.1:** Real roster in. Men's came in at 7 pairs, not 8 — an odd field, so the bracket gives the top seed (Irfan/Agoes) a bye straight to the semifinal. `buildOrderOfPlay` was fixed so a bye no longer burns a real 30-minute slot (it has no match to play — the result is already known when the bracket is built). Net effect: **15 real matches, not 16**. The §4 walkthrough below still shows the original 8-pair planning exercise — the design it establishes (dependency ordering, rest protection) is unchanged; only the headcount is. If an 8th men's pair ever shows up, the field returns to a clean 8.
 
 **Changes in v1.0:** Event named and dated. One day confirmed. Both divisions get a bronze match and a final — 16 matches total, 30-minute slots, 08:00–16:45. Women's champion decided on court rather than by points (§4.4). Pairs display as `Player A / Player B`.
 
@@ -35,7 +37,7 @@ Standalone app. Firebase project ("Turnamen Tennis"), own repo, own Netlify site
 | Teams | Fixed pairs of two. Doubles only. Displayed as `Player A / Player B` — no team names. |
 | Courts | **1** |
 | Matches | 8 women's + 7 men's = **15 real matches** (16 match documents — one men's quarterfinal is a bye, seed 1 advances without playing) |
-| Slot length | 30 min · 08:00–16:15 including a 45-min break |
+| Schedule | **Two sequential blocks, not concurrent.** Women's 07:00 → ~11:30. Men's 17:00 → ~20:30 (court closes 21:00 — 30 min slack). 30-min slots throughout. |
 | Language | Bahasa Indonesia + English |
 
 Men's came in at 7 pairs, an odd field, so the bracket gives the top seed a bye. If an 8th pair joins later, re-seeding returns it to a clean field of 8 and the schedule reverts to 16 real matches ending 16:45.
@@ -204,6 +206,23 @@ Rejected alternatives:
 **Known weakness of the chosen format:** the RR leader gets no advantage in the final, so a pair can top the group and lose the title to someone they already beat. Accepted for this event; the Page playoff is the fix if it ever runs across two days.
 
 Both are per-division flags (`third_place`, `final_between_top_two`), so this is a config change, not a rebuild.
+
+### 4.5 The current schedule: two sequential blocks, not one interleaved queue
+
+§4.1–4.3 above describe the original design — one continuous queue alternating both divisions on the shared court. That was superseded once the plan became **"finish all of Women's first, then start Men's later"**: Women's at 07:00, Men's at 17:00, with the court closing at 21:00 as a hard constraint on the men's block.
+
+**Why this isn't just "the same scheduler with two start times."** The old interleaved design got something for free that a sequential design has to earn back deliberately: with a men's match always sitting between two women's matches, no pair was ever accidentally scheduled into consecutive slots. Remove the interleaving and that protection disappears — worse, for a 4-team round robin it turns out to be **mathematically impossible to fully restore**. Each of the 6 round-robin matches has exactly one other match that shares no player with it (its "safe partner" — e.g. A-vs-B's only safe partner is C-vs-D). A sequence of 6 matches has 5 adjacent pairs to fill, but only 3 safe-partner pairs exist among all 6 matches combined — so at least 2 of the 5 adjacencies must repeat a team, in any possible ordering. This isn't a scheduling bug to fix; it's a property of round-robin with 4 players on one court.
+
+**What the scheduler does about it:** at each step, prefer a match that doesn't repeat the immediately preceding match's pair; when every remaining eligible match would repeat (which happens exactly twice, provably, for this event), insert a 15-minute rest gap before it rather than leaving the pair to walk off one match straight into the next. Two other kinds of gap are handled differently:
+
+- **Dependency gap** (bronze/final waiting on the full round-robin table, or a semifinal waiting on its quarterfinals): zero minutes. The app computes standings and advances winners the instant a score is saved — there's no manual tally to wait on, unlike a paper standings sheet.
+- **Bye resolution:** unchanged from v1.1 — a bye consumes no schedule slot, since its result is fixed when the bracket is built, not played on the day.
+
+**Knockout brackets don't have this problem.** Within any round, every entrant is disjoint by construction — QF1 and QF2 can never share a player — so the men's block schedules cleanly with zero forced rest gaps.
+
+**The numbers this produces:** Women's — 6 RR matches with 2 forced 15-min rest gaps + bronze + final = ends **~11:30**. Men's — 3 real quarterfinals + 2 semis + bronze + final, no forced gaps = 17:00 → **20:30**, 30 minutes inside the 21:00 cutoff.
+
+**Data model:** `tournament.blocks` is now an ordered array — `[{ divisionId, start }, ...]` — read directly by both the scheduler and the Info tab, rather than a single `dailyStart`/`breakAfterSlot`/`breakMinutes` on the tournament. `tournament.courtCloses` is checked against the last block's computed end time at seed time, with a console warning (not a hard failure) if it's exceeded — the admin can then shorten match formats or move the start earlier.
 
 ---
 
@@ -394,7 +413,7 @@ Phases 1–4 are the August build.
 - **Event:** Turnamen 17-an Tennis Casman · 17 Aug 2026 · one day · 1 court
 - **Divisions:** Women's Doubles, 4 pairs, RR + bronze + final · Men's Doubles, 7 pairs (real roster; one bye), knockout + bronze — concurrent, one tournament
 - **Teams:** fixed pairs of two, displayed `Player A / Player B`; no team names
-- **Matches:** 15 real (16 documents incl. one bye) · 30-minute slots · 08:00–16:15 with a 45-min break
+- **Matches:** 15 real (16 documents incl. one bye) · 30-minute slots · **two sequential blocks**: Women's 07:00 → ~11:30, Men's 17:00 → ~20:30 (court closes 21:00)
 - **App:** standalone, Firebase (Firestore + Anonymous Auth) + Netlify
 - **Language:** Bahasa + English
 - **Role:** Agoes sets up and hands PINs to organizers; handoff and graceful degradation are requirements

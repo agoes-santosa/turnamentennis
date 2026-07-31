@@ -54,11 +54,18 @@ export function buildSeed() {
     venueAddress: '',
     mapsUrl: '',
     courts: 1,
-    dailyStart: '08:00',
-    dailyEnd: '18:00',
     slotMinutes: 30,
-    breakAfterSlot: 8,
-    breakMinutes: 45,
+    // Women's and Men's play as two separate sequential blocks on the one
+    // court -- Women's runs to completion first, Men's starts fresh later.
+    // Kept on the tournament doc (not hardcoded in the scheduler) so the
+    // Info tab and any future admin UI can read the plan directly.
+    blocks: [
+      { divisionId: 'div_w', start: '07:00' },
+      { divisionId: 'div_m', start: '17:00' },
+    ],
+    // Hard constraint: the court closes at 21:00, so Men's (starting 17:00)
+    // must fit in that window. Checked below after scheduling.
+    courtCloses: '21:00',
     // Local-mode only. Firebase mode stores hashes in a separate `pins`
     // collection instead — see seed.mjs and firestore.rules.
     adminPin: '170826',
@@ -106,12 +113,19 @@ export function buildSeed() {
   const mKO = buildKnockout('div_m', mTeams.map((t) => t.id), { thirdPlace: true });
 
   const matches = [...wRR, ...wPlayoffs, ...mKO];
-  buildOrderOfPlay(matches, {
-    start: tournament.dailyStart,
-    slotMinutes: tournament.slotMinutes,
-    breakAfterSlot: tournament.breakAfterSlot,
-    breakMinutes: tournament.breakMinutes,
-  });
+  const { blocks } = buildOrderOfPlay(
+    matches,
+    tournament.blocks.map((b) => ({ ...b, slotMinutes: tournament.slotMinutes })),
+  );
+
+  const menBlock = blocks.find((b) => b.divisionId === 'div_m');
+  if (menBlock && menBlock.endTime > tournament.courtCloses) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `Men's block ends ${menBlock.endTime}, after the ${tournament.courtCloses} court closing time. `
+      + 'Move its start earlier or shorten match formats.',
+    );
+  }
 
   return { tournament, divisions, players, teams, matches, log: [] };
 }
