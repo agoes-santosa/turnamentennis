@@ -90,9 +90,13 @@ function firebaseAdapter() {
   const sub = (name) => fns.collection(db, 'tournaments', FIREBASE.tournamentId, name);
 
   const hydrate = async () => {
+    // divisions is explicitly ordered -- Firestore's default (no orderBy) is
+    // by document ID, and 'div_m' sorts before 'div_w' alphabetically, which
+    // silently put Men's before Women's everywhere division order matters
+    // (tabs, Info's schedule line) despite Women's playing first.
     const [tSnap, dSnap, pSnap, tmSnap, mSnap] = await Promise.all([
       fns.getDoc(tRef()),
-      fns.getDocs(sub('divisions')),
+      fns.getDocs(fns.query(sub('divisions'), fns.orderBy('order'))),
       fns.getDocs(sub('players')),
       fns.getDocs(sub('teams')),
       fns.getDocs(fns.query(sub('matches'), fns.orderBy('playOrder'))),

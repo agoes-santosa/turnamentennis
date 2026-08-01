@@ -3,7 +3,7 @@
 import { store, exportSeedJson } from './store.js';
 import { makeT } from './i18n.js';
 import {
-  renderHeader, renderNowOnCourt, renderOrderOfPlay, renderDivision,
+  renderHeader, renderNowOnCourt, renderDivision,
   renderInfo, renderSheet, renderPin,
 } from './ui.js';
 
@@ -11,7 +11,7 @@ const app = document.getElementById('app');
 const layer = document.getElementById('layer');
 
 const ui = {
-  tab: new URLSearchParams(location.search).get('tab') || 'op',
+  tab: new URLSearchParams(location.search).get('tab') || 'info',
   sheet: null,          // { type:'match'|'pin', id?, mode? }
   pinError: null,
   attempts: 0,
@@ -23,14 +23,15 @@ const ui = {
 
 function tabs() {
   const T = makeT(store.lang);
+  // Info first (read this before anything else), then divisions in the order
+  // they're actually played -- Women's (07:00), then Men's (17:00).
   const items = [
-    { key: 'op', label: T('orderOfPlay') },
+    { key: 'info', label: T('info') },
     ...store.state.divisions.map((d) => ({
       key: d.id,
       label: d.short[store.lang] ?? d.short.en,
       colour: d.colour,
     })),
-    { key: 'info', label: T('info') },
   ];
   return `<nav class="tabs" role="tablist">
       ${items.map((i) => `
@@ -42,10 +43,8 @@ function tabs() {
 }
 
 function body() {
-  if (ui.tab === 'op') return renderOrderOfPlay();
-  if (ui.tab === 'info') return renderInfo();
   if (store.division(ui.tab)) return renderDivision(ui.tab);
-  return renderOrderOfPlay();
+  return renderInfo();
 }
 
 function render() {

@@ -5,6 +5,8 @@
 **Event:** Turnamen 17-an Tennis Casman
 **Target:** live for 17 August 2026
 
+**Changes in v1.4:** Order of Play tab removed — with divisions now playing as two non-overlapping sequential blocks (v1.2) rather than one interleaved queue, it had become a strict subset of what each division's own Matches list already shows; keeping it was pure redundancy, not a second useful view. Tabs reordered to Info → Putri → Putra (Info first, since it's genuinely the first thing worth reading; divisions in play order). Venue row now hides itself entirely when unset instead of showing a placeholder — the venue is understood, not asked about, for this event. Women's round-robin scoring matched to Men's format (one set to 6, no-ad) — it was never actually driving the schedule (see §4.1 vs §4.5/6: the slot spacing was always the uniform 30 minutes, so this is a labelling correction, not a re-timing).
+
 **Changes in v1.3:** Women's bronze and final made **optional** — heat, not format, is the constraint: those two matches would otherwise land in the hottest part of late morning. The round-robin table (6 required matches) is now a legitimate result on its own; bronze/final become a condensed 9-point quick decider (~10 min) that an admin can explicitly skip. Because the standings might now *be* the final result rather than just a tiebreak feeding into a match, the tiebreak order was reconsidered and swapped: **wins → game differential → head-to-head → ratio** (previously head-to-head sat above differential). §4.6 documents both changes and the reasoning. Also: `js/_headers` added to fix a real staleness risk discovered while testing this change — the app has no build step or hashed filenames, so without an explicit `Cache-Control: no-cache`, a deploy's fixes could silently not reach returning visitors.
 
 **Changes in v1.2:** Schedule restructured from one interleaved queue to **two sequential blocks** — all of Women's plays to completion first (07:00 start), then Men's runs separately later (17:00 start, hard cap: court closes 21:00). This removes the free byproduct the old interleaved design relied on: with a men's match always sitting between two women's matches, no pair was ever accidentally scheduled back-to-back. Standalone, a 4-team round robin is provably unable to avoid this entirely — every match has exactly one non-conflicting partner match, so at least 2 of the 6 adjacent pairs in any ordering must repeat a team. `buildOrderOfPlay` now detects those unavoidable repeats and inserts a 15-minute rest gap only where forced, leaving everything else back-to-back. §4's walkthrough below describes the superseded interleaved design; §4.5 documents the current one.
@@ -286,18 +288,15 @@ With a single fixed event, home may simply redirect to it — decided at build t
 
 **Now On Court** hero (§5.1).
 
-**Tabs:**
+**Tabs, as actually built (v1.4):** Info · Putri · Putra, in that order — Info first because with two non-overlapping sequential blocks (§4.5) and each division's own match list already showing its own schedule, a combined "Order of Play" view (as originally planned below) turned out to be pure redundancy once the interleaved single-queue design (§4.2) was superseded. Removed rather than kept as a second view of the same data.
 
 | Tab | Scope | Contents |
 |---|---|---|
-| **Order of Play** | both divisions | The default tab. The full queue in one list, division-coloured, split by day, with a `NOW` marker and `Done / Live / Upcoming` states. Answers "when do I play?" — the most-asked question at the venue. |
-| **Women's** | division | Standings table, its 6 fixtures, its pairs. |
-| **Men's** | division | Bracket diagram, its 7 matches, its pairs. |
-| **Info** | tournament | Description, rules, per-division format and scoring, venue, participant list, both PINs' purpose explained (not the PINs). |
+| **Info** | tournament | Date, venue (hidden entirely if unset, not shown as a placeholder), court, per-division schedule/format, participant lists, help steps. Default tab — read this first. |
+| **Putri** (Women's) | division | Standings table, its 6 required + 2 optional fixtures, its pairs. |
+| **Putra** (Men's) | division | Bracket diagram, its 7 matches, its pairs. |
 
-Division tabs are named after the actual divisions rather than sitting behind a switcher — with two of them, tabs are fewer taps than a switcher plus tabs.
-
-Admin-only tabs when unlocked: **Players**, **Schedule**, **Settings**.
+Division tabs are named after the actual divisions rather than sitting behind a switcher — with two of them, tabs are fewer taps than a switcher plus tabs. The paragraphs below (through §5.4 continued) describe the originally-planned richer tournament page — cover image, Now On Court hero, Open in Maps venue block, admin tabs for Players/Schedule/Settings — which remains the design intent for later phases; the tab set itself is what's now simplified from that plan.
 
 ### 5.5 Standings table on a phone
 

@@ -77,8 +77,8 @@ export function renderHeader() {
       </div>
       <h1 class="hdr-title">${esc(tn.name)}</h1>
       <div class="hdr-sub">
-        ${tn.venueName ? `<span>${esc(tn.venueName)}</span>` : `<span class="muted">${T('noVenue')}</span>`}
-        <span class="dot">·</span><span>${tn.courts} ${T('court').toLowerCase()}</span>
+        ${tn.venueName ? `<span>${esc(tn.venueName)}</span><span class="dot">·</span>` : ''}
+        <span>${tn.courts} ${T('court').toLowerCase()}</span>
       </div>
       <div class="progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
         <div class="progress-bar" style="width:${pct}%"></div>
@@ -140,50 +140,6 @@ export function renderNowOnCourt() {
       ${upNext ? `<div class="now-next">${T('upNext')} · ${esc(upNext.startTime ?? '')} — ${sideName(upNext, 'home')} v ${sideName(upNext, 'away')}</div>` : ''}
       ${store.can('score') ? `<button class="now-cta" data-act="open-match" data-id="${m.id}">${T('tapToScore')}</button>` : ''}
     </section>`;
-}
-
-/* ------------------------------------------------------------------ *
- * Order of play
- * ------------------------------------------------------------------ */
-
-export function renderOrderOfPlay() {
-  const T = t();
-  const queue = store.orderOfPlay();
-  const rows = queue.map((m, i) => {
-    const div = store.division(m.divisionId);
-    // Divisions now play as separate sequential blocks, not interleaved, so a
-    // new block starting is the meaningful divider -- it replaces the old
-    // single mid-day break marker.
-    const prevDiv = i > 0 ? queue[i - 1].divisionId : null;
-    const block = m.divisionId !== prevDiv
-      ? `<li class="op-block" style="--c:${div.colour}">
-           ${esc(div.name[store.lang] ?? div.name.en)} · ${T('startsAt')} ${esc(m.startTime ?? '')}
-         </li>` : '';
-    const score = m.status === 'completed' ? summarise(m.score)
-      : m.status === 'skipped' ? T('skipped') : '';
-    const winner = m.winnerTeamId;
-    return `${block}
-      <li class="op-row ${statusClass(m)}" style="--c:${div.colour}"
-          data-act="open-match" data-id="${m.id}" tabindex="0" role="button">
-        <div class="op-time">
-          <span class="op-order">${m.playOrder}</span>
-          <span>${esc(m.startTime ?? '')}</span>
-        </div>
-        <div class="op-body">
-          <div class="op-meta">
-            <span class="op-div">${esc(div.short[store.lang] ?? div.short.en)}</span>
-            <span class="op-stage">${t().stage(m.stage)}</span>
-            ${m.optional ? `<span class="op-optional">${T('optional')}</span>` : ''}
-            ${m.status === 'in_progress' ? `<span class="op-livetag"><span class="pulse"></span>${T('live')}</span>` : ''}
-          </div>
-          <div class="op-pair ${winner && winner === m.homeTeamId ? 'won' : ''}">${sideName(m, 'home')}</div>
-          <div class="op-pair ${winner && winner === m.awayTeamId ? 'won' : ''}">${sideName(m, 'away')}</div>
-        </div>
-        <div class="op-score">${esc(score)}</div>
-      </li>`;
-  }).join('');
-
-  return `<ul class="op">${rows}</ul>`;
 }
 
 /* ------------------------------------------------------------------ *
@@ -338,7 +294,7 @@ export function renderInfo() {
       <h2 class="card-title">${T('info')}</h2>
       <dl class="info-list">
         <dt>${T('date')}</dt><dd>${esc(tn.date)}</dd>
-        <dt>${T('venue')}</dt><dd>${tn.venueName ? esc(tn.venueName) : `<span class="muted">${T('noVenue')}</span>`}</dd>
+        ${tn.venueName ? `<dt>${T('venue')}</dt><dd>${esc(tn.venueName)}</dd>` : ''}
         <dt>${T('court')}</dt><dd>${tn.courts}</dd>
         <dt>${T('schedule')}</dt><dd>${(tn.blocks ?? []).map((b) => {
     const bd = store.division(b.divisionId);

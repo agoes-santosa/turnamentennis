@@ -2,7 +2,6 @@
 
 export const DICT = {
   id: {
-    orderOfPlay: 'Jadwal Main',
     info: 'Info',
     live: 'BERLANGSUNG',
     next: 'BERIKUTNYA',
@@ -27,7 +26,6 @@ export const DICT = {
     done: 'Selesai',
     scheduled: 'Terjadwal',
     inProgress: 'Berlangsung',
-    break: 'Istirahat',
     startsAt: 'mulai',
     optional: 'Opsional',
     skipped: 'Dilewati',
@@ -68,7 +66,6 @@ export const DICT = {
     rules: 'Aturan',
     players: 'Pemain',
     help: 'Bantuan',
-    noVenue: 'Lokasi belum diisi',
     undo: 'Batal',
     endMatch: 'Selesaikan pertandingan?',
     winnerIs: 'Pemenang',
@@ -79,7 +76,6 @@ export const DICT = {
     loserOf: 'Kalah',
   },
   en: {
-    orderOfPlay: 'Order of Play',
     info: 'Info',
     live: 'LIVE',
     next: 'NEXT',
@@ -104,7 +100,6 @@ export const DICT = {
     done: 'Done',
     scheduled: 'Scheduled',
     inProgress: 'In progress',
-    break: 'Break',
     startsAt: 'starts',
     optional: 'Optional',
     skipped: 'Skipped',
@@ -145,7 +140,6 @@ export const DICT = {
     rules: 'Rules',
     players: 'Players',
     help: 'Help',
-    noVenue: 'Venue not set',
     undo: 'Undo',
     endMatch: 'End match?',
     winnerIs: 'Winner',

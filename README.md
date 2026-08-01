@@ -255,8 +255,11 @@ or from Node, which is exactly what `seed.mjs` does with `buildSeed()`.
 
 ## Roadmap
 
-Built: order of play, live "Now On Court" hero, standings, bracket, quick and
-live scoring, PIN unlock via Firebase, bilingual UI.
+Built: live "Now On Court" hero, per-division standings and bracket (each
+tab is its own complete schedule for that division — no separate combined
+order-of-play view, removed as redundant once divisions stopped
+interleaving), quick and live scoring, optional/skippable matches, PIN
+unlock via Firebase, bilingual UI.
 
 Next: admin screens for editing players and pairs in-app (right now that means
 editing `seed-data.js` and re-running the seed script), drag-to-reorder the

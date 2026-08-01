@@ -31,7 +31,6 @@ const MEN = [
 ];
 
 export const SCORING = {
-  short: { setsToWin: 1, gamesPerSet: 4, tiebreak: true, noAd: true, label: '1 set ke 4 · no-ad' },
   standard: { setsToWin: 1, gamesPerSet: 6, tiebreak: true, noAd: true, label: '1 set ke 6 · no-ad' },
   final: { setsToWin: 1, gamesPerSet: 6, tiebreak: true, noAd: false, superTiebreak: true, label: '1 set ke 6 + super TB' },
   // A fast, low-heat-exposure decider — raw points, no games or sets, over in
@@ -84,7 +83,7 @@ export function buildSeed() {
       short: { en: "Women's", id: 'Putri' },
       format: 'round_robin', colour: '#e0568a', status: 'open',
       thirdPlace: true, finalBetweenTopTwo: true, playoffsOptional: true,
-      scoring: SCORING.short, finalScoring: SCORING.quick,
+      scoring: SCORING.standard, finalScoring: SCORING.quick,
     },
     {
       id: 'div_m', tournamentId: tournament.id, order: 2, key: 'mens',
