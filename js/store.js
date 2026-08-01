@@ -211,14 +211,18 @@ export const store = {
       if (d.format !== 'round_robin') continue;
       seedRRPlayoffs(matches.filter((m) => m.divisionId === d.id), this.teamsOf(d.id));
     }
-    // Division status follows its matches.
+    // Division status follows its matches. Optional matches (Women's
+    // bronze/final, skippable if it's too hot) don't block completion --
+    // the round robin standings are a legitimate result on their own.
     for (const d of this.state.divisions) {
       const ms = matches.filter((m) => m.divisionId === d.id);
-      const done = ms.every((m) => m.status === 'completed');
+      const required = ms.filter((m) => !m.optional);
+      const done = required.length > 0 && required.every((m) => m.status === 'completed');
       const started = ms.some((m) => m.status !== 'scheduled');
       d.status = done ? 'completed' : started ? 'live' : d.status === 'draft' ? 'draft' : 'open';
     }
-    const all = matches.every((m) => m.status === 'completed');
+    const requiredAll = matches.filter((m) => !m.optional);
+    const all = requiredAll.length > 0 && requiredAll.every((m) => m.status === 'completed');
     const any = matches.some((m) => m.status !== 'scheduled');
     if (this.state.tournament.status !== 'draft') {
       this.state.tournament.status = all ? 'completed' : any ? 'live' : 'open';
@@ -261,9 +265,31 @@ export const store = {
     return standings(this.teamsOf(divisionId), rr);
   },
 
+  /**
+   * Who won the division, or null if that isn't decided yet. Two paths to a
+   * result: the final was actually played, or (for an optional final that
+   * was explicitly skipped) the round-robin standings serve as the result --
+   * never guessed while the match is merely still sitting unplayed, since an
+   * organizer might still choose to play it.
+   */
+  championOf(divisionId) {
+    const div = this.division(divisionId);
+    const fin = this.matchesOf(divisionId).find((m) => m.stage === STAGE.F);
+    if (!fin) return null;
+    if (fin.status === 'completed' && fin.winnerTeamId) {
+      return { teamId: fin.winnerTeamId, viaStandings: false };
+    }
+    if (fin.optional && fin.status === 'skipped' && div?.format === 'round_robin') {
+      const top = this.standingsOf(divisionId)[0];
+      return top ? { teamId: top.teamId, viaStandings: true } : null;
+    }
+    return null;
+  },
+
   progress() {
     const all = this.state.matches.filter((m) => !m.isBye);
-    return { done: all.filter((m) => m.status === 'completed').length, total: all.length };
+    const done = all.filter((m) => m.status === 'completed' || m.status === 'skipped').length;
+    return { done, total: all.length };
   },
 
   /* -------- mutations -------- */
@@ -326,6 +352,31 @@ export const store = {
     if (!m) return;
     m.status = 'scheduled'; m.score = null; m.winnerTeamId = null;
     this.logEvent('reopen', m.label);
+    this.recompute();
+    await this.persist();
+  },
+
+  /**
+   * Explicitly mark an optional match as not being played (e.g. Women's
+   * bronze/final, skipped for heat). Distinct from leaving it "scheduled" --
+   * a scheduled match still looks like something waiting to happen, which
+   * would leave `nextMatch()` pointing at it forever if nobody ever starts
+   * it. Skipping is a real decision with a visible record, not a limbo state.
+   */
+  async skipOptional(matchId) {
+    const m = this.state.matches.find((x) => x.id === matchId);
+    if (!m?.optional) return;
+    m.status = 'skipped'; m.score = null; m.winnerTeamId = null;
+    this.logEvent('skip', m.label);
+    this.recompute();
+    await this.persist();
+  },
+
+  async unskip(matchId) {
+    const m = this.state.matches.find((x) => x.id === matchId);
+    if (!m || m.status !== 'skipped') return;
+    m.status = 'scheduled';
+    this.logEvent('unskip', m.label);
     this.recompute();
     await this.persist();
   },

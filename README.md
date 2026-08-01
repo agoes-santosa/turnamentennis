@@ -7,14 +7,24 @@ progress, organizers unlock with a PIN and enter scores on the same page.
 
 | Division | Format | Pairs | Matches | Starts |
 |---|---|---|---|---|
-| Ganda Putri | Round robin + bronze + final | 4 | 8 | 07:00 |
+| Ganda Putri | Round robin + **optional** bronze/final | 4 | 6 required + 2 optional | 07:00 |
 | Ganda Putra | Knockout + bronze | 7 | 7 | 17:00 |
 
-Women's plays to completion first (finishes ~11:30), then a long gap, then
-Men's runs 17:00 → 20:30 — comfortably inside the court's 21:00 closing time,
-with 30 minutes of slack. Men's has an odd pair count, so the top seed
-(Irfan/Agoes) gets a bye straight to the semifinal — a bye plays no match and
-costs no schedule slot.
+Women's plays to completion first (the 6 required group matches finish
+~10:30), then a long gap, then Men's runs 17:00 → 20:30 — comfortably inside
+the court's 21:00 closing time, with 30 minutes of slack. Men's has an odd
+pair count, so the top seed (Irfan/Agoes) gets a bye straight to the
+semifinal — a bye plays no match and costs no schedule slot.
+
+**Women's bronze and final are optional**, condensed to a quick 9-point
+decider (~10 min) if played at all — matches 7 and 8 would otherwise land
+right in the hottest part of late morning. The round-robin table is a
+legitimate result on its own: an admin can tap **Skip (optional)** on either
+match, and the champion is then read straight off the standings instead
+(shown with a "(from standings)" note wherever it's displayed). See §4.6 of
+the PRD for why the standings are ranked the way they are — it matters more
+now that they might be the actual final result, not just a tiebreak feeding
+into a match.
 
 A 4-team round robin has a mathematical quirk worth knowing: it's provably
 impossible to schedule all 6 matches back-to-back on one court without at
@@ -211,20 +221,35 @@ or from Node, which is exactly what `seed.mjs` does with `buildSeed()`.
 
 ### Notes on the logic
 
-- **Standings** rank by wins → head-to-head → game difference → ratio.
-  Head-to-head sits above game difference deliberately: in a 4-pair table it is
-  the fairest split and the one players expect.
+- **Standings** rank by wins → game difference → head-to-head → ratio.
+  Differential sits above head-to-head deliberately: it rewards how a pair
+  performed across all their matches, not just the one result between two
+  tied pairs (which can turn on a single bad game) — and it matters more now
+  that the standings might be the actual final result for Women's, not just a
+  tiebreak feeding into a match.
 - **Standings are derived**, never stored, so the table cannot disagree with the
   match results.
 - **The bracket auto-advances.** Scoring a semifinal fills the final and drops
   the loser into the bronze match. Byes resolve immediately.
-- **The women's playoffs seed themselves** once all six group matches are in.
+- **The women's playoffs seed themselves** once all six group matches are in —
+  even if they end up being skipped, so the "would-be" matchup is still shown.
+- **Skipping an optional match** (`store.skipOptional()`) is a real decision
+  with a visible record, not just leaving it unplayed — a match left merely
+  "scheduled" forever would leave the app waiting on something that's never
+  coming. `store.championOf(divisionId)` resolves the winner from the final if
+  it was played, or from the table if the final was explicitly skipped —
+  never from a match that's just sitting unplayed, since an organizer might
+  still choose to play it.
 - **Order of play** runs as sequential blocks (`tournament.blocks` in
   `js/seed-data.js` — currently Women's at 07:00, then Men's at 17:00), each
   with its own start clock. Within a block, knockout dependencies are
   respected and a pair is never scheduled into two consecutive slots unless
   that's mathematically unavoidable (see the 4-team round robin note above),
   in which case a short rest gap is inserted instead of a silent clash.
+- **`_headers`** tells Netlify to send `Cache-Control: no-cache` on every
+  file. This app has no build step and no hashed filenames, so without it a
+  returning visitor's browser could keep running yesterday's JS after a
+  deploy until they happened to hard-refresh.
 
 ---
 

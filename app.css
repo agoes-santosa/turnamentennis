@@ -115,9 +115,10 @@ table { border-collapse: collapse; width: 100%; }
 }
 .now-done { border-left-color: var(--accent); }
 .now-empty { color: var(--ink-3); margin-top: 8px; }
-.champ-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.champ-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
 .champ-div { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--c); letter-spacing: .06em; }
 .champ-name { font-size: 17px; font-weight: 700; }
+.champ-note { font-size: 12px; color: var(--ink-3); }
 
 /* ---------------- tabs ---------------- */
 
@@ -146,6 +147,8 @@ table { border-collapse: collapse; width: 100%; }
   border-left: 3px solid var(--c); border-radius: 12px; min-height: var(--tap);
 }
 .op-row.done { opacity: .68; }
+.op-row.skipped { opacity: .5; }
+.op-row.skipped .op-pair { text-decoration: line-through; }
 .op-row.live { border-color: var(--live); box-shadow: 0 0 0 1px var(--live) inset; opacity: 1; }
 .op-time { text-align: center; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .op-order {
@@ -155,6 +158,10 @@ table { border-collapse: collapse; width: 100%; }
 .op-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 3px; }
 .op-div { color: var(--c); font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
 .op-stage { color: var(--ink-3); }
+.op-optional {
+  color: var(--ink-3); border: 1px solid var(--line); border-radius: 999px;
+  padding: 0 6px; font-size: 10px; text-transform: uppercase; letter-spacing: .03em;
+}
 .op-livetag { display: inline-flex; align-items: center; gap: 4px; color: var(--live); font-weight: 800; }
 .op-pair { font-size: 14px; color: var(--ink-2); }
 .op-pair.won { color: var(--ink); font-weight: 700; }
@@ -229,6 +236,7 @@ table { border-collapse: collapse; width: 100%; }
   padding: 10px; border: 1px solid var(--line); border-radius: 10px; min-height: var(--tap);
 }
 .ml-row.done { opacity: .7; }
+.ml-row.skipped { opacity: .5; }
 .ml-row.live { border-color: var(--live); }
 .ml-stage { font-size: 11px; color: var(--ink-3); font-weight: 700; text-transform: uppercase; }
 .ml-pairs { font-size: 13px; line-height: 1.4; }
@@ -275,6 +283,7 @@ table { border-collapse: collapse; width: 100%; }
   background: var(--accent); color: #06210f; font-weight: 700; font-size: 15px;
 }
 .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink-2); flex: 0 1 auto; padding: 0 16px; }
+.btn.ghost.skip { border-color: var(--live); color: var(--live); }
 
 .quick { display: grid; gap: 12px; }
 .quick label { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

@@ -246,8 +246,15 @@ export function propagate(matches) {
  * Playoffs for a round-robin division
  * ------------------------------------------------------------------ */
 
-/** Bronze (#3 v #4) and final (#1 v #2), both fed by the completed RR table. */
-export function buildRRPlayoffs(divisionId, rrMatches, { thirdPlace = true, final = true } = {}) {
+/**
+ * Bronze (#3 v #4) and final (#1 v #2), both fed by the completed RR table.
+ *
+ * `optional: true` marks these as not required to close out the division —
+ * the RR standings alone are a legitimate final result (see §4.4/§4.6 of the
+ * PRD). Used for Women's, where playing them risks pushing into the hottest
+ * part of the late morning; skip-if-hot rather than mandatory.
+ */
+export function buildRRPlayoffs(divisionId, rrMatches, { thirdPlace = true, final = true, optional = false } = {}) {
   const deps = rrMatches.map((m) => m.id);
   const out = [];
   const mk = (stage, label, hs, as) => ({
@@ -264,6 +271,7 @@ export function buildRRPlayoffs(divisionId, rrMatches, { thirdPlace = true, fina
     score: null,
     winnerTeamId: null,
     isBye: false,
+    optional,
     nextMatchId: null,
     nextSlot: null,
   });
@@ -309,9 +317,13 @@ export function matchWinner(match) {
  * Standings from completed matches only. Playoff matches are excluded by the
  * caller — the table reflects the round robin, not the knockout on top of it.
  *
- * Ranked by: wins -> head-to-head among the tied -> net games -> games ratio.
- * Head-to-head sits above net games deliberately: in a 4-pair table it is the
- * fairest and most defensible split, and it is what players expect.
+ * Ranked by: wins -> point/game differential -> head-to-head (among any still
+ * tied on both) -> ratio. Differential sits above head-to-head deliberately:
+ * it rewards how a pair performed across all their matches, not just the one
+ * result between two tied pairs (which can turn on a single bad game).
+ * This matters more now that the decider matches are optional for Women's —
+ * the table itself may be the final result, not just a tiebreak feeding into
+ * one.
  */
 export function standings(teams, matches) {
   const rows = new Map();
@@ -340,23 +352,22 @@ export function standings(teams, matches) {
     ratio: r.gf + r.ga > 0 ? r.gf / (r.gf + r.ga) : 0,
   }));
 
-  // Sort on everything except head-to-head first.
+  // Sort on everything except head-to-head first: wins, then differential, then ratio.
   list.sort((a, b) => b.wins - a.wins || b.diff - a.diff || b.ratio - a.ratio);
 
-  // Then resolve equal-win blocks by head-to-head.
+  // Then resolve blocks still tied on BOTH wins and differential by head-to-head.
   const out = [];
   let i = 0;
   while (i < list.length) {
     let j = i;
-    while (j + 1 < list.length && list[j + 1].wins === list[i].wins) j++;
+    while (j + 1 < list.length && list[j + 1].wins === list[i].wins && list[j + 1].diff === list[i].diff) j++;
     const block = list.slice(i, j + 1);
     if (block.length > 1) {
       const h2h = new Map(block.map((r) => [
         r.teamId,
         block.reduce((n, o) => n + (o.teamId !== r.teamId && r.beat.has(o.teamId) ? 1 : 0), 0),
       ]));
-      block.sort((a, b) =>
-        (h2h.get(b.teamId) - h2h.get(a.teamId)) || b.diff - a.diff || b.ratio - a.ratio);
+      block.sort((a, b) => (h2h.get(b.teamId) - h2h.get(a.teamId)) || b.ratio - a.ratio);
     }
     out.push(...block);
     i = j + 1;

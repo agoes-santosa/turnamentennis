@@ -34,6 +34,10 @@ export const SCORING = {
   short: { setsToWin: 1, gamesPerSet: 4, tiebreak: true, noAd: true, label: '1 set ke 4 · no-ad' },
   standard: { setsToWin: 1, gamesPerSet: 6, tiebreak: true, noAd: true, label: '1 set ke 6 · no-ad' },
   final: { setsToWin: 1, gamesPerSet: 6, tiebreak: true, noAd: false, superTiebreak: true, label: '1 set ke 6 + super TB' },
+  // A fast, low-heat-exposure decider — raw points, no games or sets, over in
+  // about 10 minutes. Used for Women's bronze/final, which are optional and
+  // only worth playing if it's short enough to be worth the extra sun.
+  quick: { pointTarget: 9, splitPoints: true, label: '1 gim cepat · sampai 9 poin' },
 };
 
 // The Firestore document ID for the tournament. Fixed and human-readable
@@ -79,8 +83,8 @@ export function buildSeed() {
       name: { en: "Women's Doubles", id: 'Ganda Putri' },
       short: { en: "Women's", id: 'Putri' },
       format: 'round_robin', colour: '#e0568a', status: 'open',
-      thirdPlace: true, finalBetweenTopTwo: true,
-      scoring: SCORING.short, finalScoring: SCORING.standard,
+      thirdPlace: true, finalBetweenTopTwo: true, playoffsOptional: true,
+      scoring: SCORING.short, finalScoring: SCORING.quick,
     },
     {
       id: 'div_m', tournamentId: tournament.id, order: 2, key: 'mens',
@@ -109,7 +113,7 @@ export function buildSeed() {
   const mTeams = teams.filter((t) => t.divisionId === 'div_m');
 
   const wRR = buildRoundRobin('div_w', wTeams.map((t) => t.id));
-  const wPlayoffs = buildRRPlayoffs('div_w', wRR, { thirdPlace: true, final: true });
+  const wPlayoffs = buildRRPlayoffs('div_w', wRR, { thirdPlace: true, final: true, optional: true });
   const mKO = buildKnockout('div_m', mTeams.map((t) => t.id), { thirdPlace: true });
 
   const matches = [...wRR, ...wPlayoffs, ...mKO];

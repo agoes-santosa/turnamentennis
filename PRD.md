@@ -5,6 +5,8 @@
 **Event:** Turnamen 17-an Tennis Casman
 **Target:** live for 17 August 2026
 
+**Changes in v1.3:** Women's bronze and final made **optional** — heat, not format, is the constraint: those two matches would otherwise land in the hottest part of late morning. The round-robin table (6 required matches) is now a legitimate result on its own; bronze/final become a condensed 9-point quick decider (~10 min) that an admin can explicitly skip. Because the standings might now *be* the final result rather than just a tiebreak feeding into a match, the tiebreak order was reconsidered and swapped: **wins → game differential → head-to-head → ratio** (previously head-to-head sat above differential). §4.6 documents both changes and the reasoning. Also: `js/_headers` added to fix a real staleness risk discovered while testing this change — the app has no build step or hashed filenames, so without an explicit `Cache-Control: no-cache`, a deploy's fixes could silently not reach returning visitors.
+
 **Changes in v1.2:** Schedule restructured from one interleaved queue to **two sequential blocks** — all of Women's plays to completion first (07:00 start), then Men's runs separately later (17:00 start, hard cap: court closes 21:00). This removes the free byproduct the old interleaved design relied on: with a men's match always sitting between two women's matches, no pair was ever accidentally scheduled back-to-back. Standalone, a 4-team round robin is provably unable to avoid this entirely — every match has exactly one non-conflicting partner match, so at least 2 of the 6 adjacent pairs in any ordering must repeat a team. `buildOrderOfPlay` now detects those unavoidable repeats and inserts a 15-minute rest gap only where forced, leaving everything else back-to-back. §4's walkthrough below describes the superseded interleaved design; §4.5 documents the current one.
 
 **Changes in v1.1:** Real roster in. Men's came in at 7 pairs, not 8 — an odd field, so the bracket gives the top seed (Irfan/Agoes) a bye straight to the semifinal. `buildOrderOfPlay` was fixed so a bye no longer burns a real 30-minute slot (it has no match to play — the result is already known when the bracket is built). Net effect: **15 real matches, not 16**. The §4 walkthrough below still shows the original 8-pair planning exercise — the design it establishes (dependency ordering, rest protection) is unchanged; only the headcount is. If an 8th men's pair ever shows up, the field returns to a clean 8.
@@ -220,9 +222,21 @@ Both are per-division flags (`third_place`, `final_between_top_two`), so this is
 
 **Knockout brackets don't have this problem.** Within any round, every entrant is disjoint by construction — QF1 and QF2 can never share a player — so the men's block schedules cleanly with zero forced rest gaps.
 
-**The numbers this produces:** Women's — 6 RR matches with 2 forced 15-min rest gaps + bronze + final = ends **~11:30**. Men's — 3 real quarterfinals + 2 semis + bronze + final, no forced gaps = 17:00 → **20:30**, 30 minutes inside the 21:00 cutoff.
+**The numbers this produces:** Women's — 6 RR matches with 2 forced 15-min rest gaps ends **~10:30** (the required part); bronze + final, if played, extend it to **~11:30** (see §4.6 — as of v1.3 these are optional). Men's — 3 real quarterfinals + 2 semis + bronze + final, no forced gaps = 17:00 → **20:30**, 30 minutes inside the 21:00 cutoff.
 
 **Data model:** `tournament.blocks` is now an ordered array — `[{ divisionId, start }, ...]` — read directly by both the scheduler and the Info tab, rather than a single `dailyStart`/`breakAfterSlot`/`breakMinutes` on the tournament. `tournament.courtCloses` is checked against the last block's computed end time at seed time, with a console warning (not a hard failure) if it's exceeded — the admin can then shorten match formats or move the start earlier.
+
+### 4.6 Women's bronze/final made optional, and why the tiebreak order changed
+
+**The problem:** Women's 6 required RR matches finish around 10:30. Bronze and final, if played as originally specced (§4.4), add another hour — pushing the last match to ~11:30, right into the part of a Jakarta-area late morning where court-side heat becomes a real concern, especially for players who've already played 3+ matches. Unlike Men's fixed 21:00 court-closing cutoff, there's no hard deadline forcing these two matches to exist at all — they were added purely for ceremony (§4.4's "title decided on court, not by a tiebreak calculation").
+
+**The fix:** bronze and final become **optional** (`match.optional = true`) and **condensed** — a single fast decider to 9 raw points (~10 minutes, using the point-target scoring already built for Americano-style formats) rather than a full set. An admin can tap **Skip (optional)** on either match at the venue if it's too hot to bother; the round-robin standings alone then serve as the final result. Nothing about §4.4's original reasoning against pure-standings selection changes — running up the score in a dead rubber is still a real risk, a pair can still top the table and lose head-to-head to the runner-up — but "the standings decide it, condensed by choice" beats "someone collapses from heat for the sake of ceremony." The trade-off is accepted explicitly, not silently.
+
+**Why this isn't just "skip and move on":** leaving an unplayed optional match sitting in `status: 'scheduled'` forever is a genuine bug, not a harmless default — `nextMatch()` would keep pointing at it indefinitely, and the app would never show a champion even after literally everything else in the tournament is done. Skipping needs to be an explicit, visible decision (`store.skipOptional()`, status `'skipped'`, logged) so the app can move on and so spectators can see it was a deliberate call ("Dilewati" in the UI), not a bug or an oversight.
+
+**Champion resolution** (`store.championOf(divisionId)`) reflects this: winner of the final if it was played; the table's #1 if the final was explicitly skipped; **null — undecided — if the match is merely sitting unplayed**, since an organizer might still choose to play it. The hero screen marks a standings-derived champion with "(from standings)" so it's never presented as identical to an on-court result.
+
+**Why the tiebreak order swapped (wins → differential → head-to-head → ratio, was wins → head-to-head → differential → ratio):** this decision carries more weight now than it did in §4.4/§7, because the table might be the literal final result rather than a tiebreak feeding into a decider match. Head-to-head-first rewards a single result between two tied pairs — which can turn on one bad game and says nothing about how either pair played against everyone else. Differential-first rewards overall performance across all three of a pair's matches, which is the fuller picture, and it's the more standard convention in individual/pairs round-robin ladders generally (head-to-head-first is more of a football-league convention, where it's genuinely more defensible — a league table already spans dozens of games per team, so one result being decisive is a smaller share of the picture than it is here). It also matches what's already the most visually prominent column in the standings UI (§5.5's "Poin" = differential), so the ranking logic now agrees with what players are already looking at.
 
 ---
 
@@ -362,8 +376,9 @@ team         id, division_id, name, player1_id, player2_id, seed
 match        id, tournament_id, division_id, stage, label,
              home_team_id, away_team_id,
              home_source_label, away_source_label,        -- "Winner QF1"
-             play_order, day, start_time, status,
+             play_order, day, start_time, status,          -- status incl. 'skipped'
              score (jsonb: sets/games/points), winner_team_id, is_bye,
+             optional,                                      -- true for Women's bronze/final (v1.3)
              next_match_id, next_slot,
              scoring_config (nullable per-stage override)
 
@@ -411,13 +426,14 @@ Phases 1–4 are the August build.
 ## 10. Settled
 
 - **Event:** Turnamen 17-an Tennis Casman · 17 Aug 2026 · one day · 1 court
-- **Divisions:** Women's Doubles, 4 pairs, RR + bronze + final · Men's Doubles, 7 pairs (real roster; one bye), knockout + bronze — concurrent, one tournament
+- **Divisions:** Women's Doubles, 4 pairs, RR (6 required) + **optional** condensed bronze/final · Men's Doubles, 7 pairs (real roster; one bye), knockout + bronze — sequential, not concurrent, one tournament
 - **Teams:** fixed pairs of two, displayed `Player A / Player B`; no team names
-- **Matches:** 15 real (16 documents incl. one bye) · 30-minute slots · **two sequential blocks**: Women's 07:00 → ~11:30, Men's 17:00 → ~20:30 (court closes 21:00)
+- **Matches:** 15 real (16 documents incl. one bye) · 30-minute slots (women's optional bronze/final: 9-point quick decider, ~10 min) · **two sequential blocks**: Women's 07:00 → ~10:30 required / ~11:30 if optional matches played, Men's 17:00 → ~20:30 (court closes 21:00)
 - **App:** standalone, Firebase (Firestore + Anonymous Auth) + Netlify
 - **Language:** Bahasa + English
 - **Role:** Agoes sets up and hands PINs to organizers; handoff and graceful degradation are requirements
 - **Scoring:** quick entry default, live `+1` available per match; per-stage scoring **required** to hold 30-minute slots
+- **Standings tiebreak:** wins → game differential → head-to-head → ratio (swapped from head-to-head-first in v1.3 — see §4.6)
 - **Cut:** pools, court grids, cross-court conflict detection
 
 ## 11. Still open — none blocking

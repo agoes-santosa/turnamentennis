@@ -36,6 +36,7 @@ const srcNum = (label) => label.replace(/\D/g, '');
 
 function statusClass(m) {
   if (m.status === 'completed') return 'done';
+  if (m.status === 'skipped') return 'skipped';
   if (m.status === 'in_progress') return 'live';
   return 'sched';
 }
@@ -103,11 +104,14 @@ export function renderNowOnCourt() {
 
   if (!m) {
     const champs = store.state.divisions.map((d) => {
-      const fin = store.matchesOf(d.id).find((x) => x.stage === STAGE.F);
-      if (!fin?.winnerTeamId) return '';
+      const champ = store.championOf(d.id);
+      if (!champ) return '';
+      const note = champ.viaStandings
+        ? `<span class="champ-note">${store.lang === 'id' ? '(dari klasemen)' : '(from standings)'}</span>` : '';
       return `<div class="champ-row">
           <span class="champ-div" style="--c:${d.colour}">${esc(d.short[store.lang] ?? d.short.en)}</span>
-          <span class="champ-name">🏆 ${esc(store.team(fin.winnerTeamId)?.name ?? '')}</span>
+          <span class="champ-name">🏆 ${esc(store.team(champ.teamId)?.name ?? '')}</span>
+          ${note}
         </div>`;
     }).join('');
     return `<section class="now now-done">
@@ -155,7 +159,8 @@ export function renderOrderOfPlay() {
       ? `<li class="op-block" style="--c:${div.colour}">
            ${esc(div.name[store.lang] ?? div.name.en)} · ${T('startsAt')} ${esc(m.startTime ?? '')}
          </li>` : '';
-    const score = m.status === 'completed' ? summarise(m.score) : '';
+    const score = m.status === 'completed' ? summarise(m.score)
+      : m.status === 'skipped' ? T('skipped') : '';
     const winner = m.winnerTeamId;
     return `${block}
       <li class="op-row ${statusClass(m)}" style="--c:${div.colour}"
@@ -168,6 +173,7 @@ export function renderOrderOfPlay() {
           <div class="op-meta">
             <span class="op-div">${esc(div.short[store.lang] ?? div.short.en)}</span>
             <span class="op-stage">${t().stage(m.stage)}</span>
+            ${m.optional ? `<span class="op-optional">${T('optional')}</span>` : ''}
             ${m.status === 'in_progress' ? `<span class="op-livetag"><span class="pulse"></span>${T('live')}</span>` : ''}
           </div>
           <div class="op-pair ${winner && winner === m.homeTeamId ? 'won' : ''}">${sideName(m, 'home')}</div>
@@ -224,9 +230,21 @@ function renderStandings(divisionId) {
         <tbody>${rows}</tbody>
       </table>
       <p class="card-note">${store.lang === 'id'
-    ? 'Urutan: menang → head-to-head → selisih game → rasio.'
-    : 'Ranked by wins → head-to-head → game difference → ratio.'}</p>
+    ? 'Urutan: menang → selisih game → head-to-head → rasio.'
+    : 'Ranked by wins → game difference → head-to-head → ratio.'}</p>
+      ${finIsOptionalNote(divisionId)}
     </section>`;
+}
+
+/** Note explaining that this division's champion may come straight from the
+ * table if its final is optional and gets skipped -- shown only where that's
+ * actually possible, so it doesn't clutter a division with a mandatory final. */
+function finIsOptionalNote(divisionId) {
+  const fin = store.matchesOf(divisionId).find((m) => m.stage === STAGE.F);
+  if (!fin?.optional) return '';
+  return `<p class="card-note">${store.lang === 'id'
+    ? 'Final di sini opsional (lihat Info) — jika dilewati, juara diambil dari peringkat #1 klasemen ini.'
+    : "This division's final is optional (see Info) — if skipped, the champion is the table's #1."}</p>`;
 }
 
 function renderBracket(divisionId) {
@@ -282,9 +300,10 @@ function renderMatchList(divisionId) {
       <ul class="ml">
         ${ms.map((m) => `
           <li class="ml-row ${statusClass(m)}" data-act="open-match" data-id="${m.id}" tabindex="0" role="button">
-            <span class="ml-stage">${t().stage(m.stage)}</span>
+            <span class="ml-stage">${t().stage(m.stage)}${m.optional ? ` · ${T('optional')}` : ''}</span>
             <span class="ml-pairs">${sideName(m, 'home')}<br>${sideName(m, 'away')}</span>
-            <span class="ml-score">${m.status === 'completed' ? esc(summarise(m.score)) : esc(m.startTime ?? '')}</span>
+            <span class="ml-score">${m.status === 'completed' ? esc(summarise(m.score))
+    : m.status === 'skipped' ? T('skipped') : esc(m.startTime ?? '')}</span>
           </li>`).join('')}
       </ul>
     </section>`;
@@ -356,41 +375,51 @@ export function renderSheet(matchId, mode = 'quick') {
   const hs = Number(sets[0]?.home) || 0;
   const as = Number(sets[0]?.away) || 0;
 
-  const body = !canScore
-    ? `<p class="sheet-note">${store.lang === 'id'
-      ? 'Masukkan PIN panitia untuk mengisi skor.' : 'Enter the organizer PIN to score.'}</p>`
-    : !bothKnown
+  const skipRow = m.optional && store.role === 'admin'
+    ? m.status === 'skipped'
+      ? `<div class="sheet-actions"><button class="btn ghost" data-act="unskip">${T('unskip')}</button></div>`
+      : m.status !== 'completed'
+        ? `<div class="sheet-actions"><button class="btn ghost skip" data-act="skip">${T('skipMatch')}</button></div>`
+        : ''
+    : '';
+
+  const body = m.status === 'skipped'
+    ? `<p class="sheet-note">${T('skipHint')}</p>`
+    : !canScore
       ? `<p class="sheet-note">${store.lang === 'id'
-        ? 'Pasangan belum ditentukan — selesaikan pertandingan sebelumnya dulu.'
-        : 'Pairs not decided yet — finish the feeding matches first.'}</p>`
-      : mode === 'live'
-        ? `<div class="live-pad">
-             <button class="pt" data-act="pt" data-side="home">+1</button>
-             <div class="pt-score"><b>${hs}</b><span>–</span><b>${as}</b></div>
-             <button class="pt" data-act="pt" data-side="away">+1</button>
-           </div>
-           <div class="sheet-actions">
-             <button class="btn ghost" data-act="undo">${T('undo')}</button>
-             <button class="btn" data-act="finish">${T('saveScore')}</button>
-           </div>`
-        : `<div class="quick">
-             <label><span>${sideName(m, 'home')}</span>
-               <input type="number" inputmode="numeric" min="0" max="99" id="sc-home" value="${hs}"></label>
-             <label><span>${sideName(m, 'away')}</span>
-               <input type="number" inputmode="numeric" min="0" max="99" id="sc-away" value="${as}"></label>
-           </div>
-           <div class="sheet-actions">
-             ${m.status === 'completed' ? `<button class="btn ghost" data-act="reopen">${T('reopen')}</button>` : ''}
-             <button class="btn ghost" data-act="mode" data-mode="live">${T('liveScoring')}</button>
-             <button class="btn" data-act="save">${T('saveScore')}</button>
-           </div>`;
+        ? 'Masukkan PIN panitia untuk mengisi skor.' : 'Enter the organizer PIN to score.'}</p>`
+      : !bothKnown
+        ? `<p class="sheet-note">${store.lang === 'id'
+          ? 'Pasangan belum ditentukan — selesaikan pertandingan sebelumnya dulu.'
+          : 'Pairs not decided yet — finish the feeding matches first.'}</p>`
+        : mode === 'live'
+          ? `<div class="live-pad">
+               <button class="pt" data-act="pt" data-side="home">+1</button>
+               <div class="pt-score"><b>${hs}</b><span>–</span><b>${as}</b></div>
+               <button class="pt" data-act="pt" data-side="away">+1</button>
+             </div>
+             <div class="sheet-actions">
+               <button class="btn ghost" data-act="undo">${T('undo')}</button>
+               <button class="btn" data-act="finish">${T('saveScore')}</button>
+             </div>`
+          : `<div class="quick">
+               <label><span>${sideName(m, 'home')}</span>
+                 <input type="number" inputmode="numeric" min="0" max="99" id="sc-home" value="${hs}"></label>
+               <label><span>${sideName(m, 'away')}</span>
+                 <input type="number" inputmode="numeric" min="0" max="99" id="sc-away" value="${as}"></label>
+             </div>
+             <div class="sheet-actions">
+               ${m.status === 'completed' ? `<button class="btn ghost" data-act="reopen">${T('reopen')}</button>` : ''}
+               <button class="btn ghost" data-act="mode" data-mode="live">${T('liveScoring')}</button>
+               <button class="btn" data-act="save">${T('saveScore')}</button>
+             </div>`;
 
   return `
     <div class="sheet-backdrop" data-act="close-sheet"></div>
     <div class="sheet" role="dialog" aria-modal="true" style="--c:${div.colour}">
       <div class="sheet-grip"></div>
       <div class="sheet-head">
-        <span class="sheet-div">${esc(div.short[store.lang] ?? div.short.en)} · ${t().stage(m.stage)}</span>
+        <span class="sheet-div">${esc(div.short[store.lang] ?? div.short.en)} · ${t().stage(m.stage)}${m.optional ? ` · ${T('optional')}` : ''}</span>
         <span class="sheet-time">${esc(m.startTime ?? '')}</span>
       </div>
       <div class="sheet-teams">
@@ -398,6 +427,7 @@ export function renderSheet(matchId, mode = 'quick') {
         <div>${sideName(m, 'away')}</div>
       </div>
       ${body}
+      ${skipRow}
     </div>`;
 }
 

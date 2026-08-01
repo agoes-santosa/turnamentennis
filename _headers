@@ -1,0 +1,10 @@
+# Netlify header rules. This app has no build step and no hashed filenames --
+# every JS/CSS file keeps the same URL forever -- so without this, a
+# returning visitor's browser can silently keep running yesterday's code
+# after a deploy, until they happen to hard-refresh. `no-cache` doesn't mean
+# "never cache": it means always revalidate with the server first (a cheap
+# conditional request), so an unchanged file still loads from cache but a
+# changed one is never served stale.
+
+/*
+  Cache-Control: no-cache

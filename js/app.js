@@ -175,6 +175,20 @@ const actions = {
     render();
   },
 
+  async skip() {
+    const T = makeT(store.lang);
+    if (!confirm(T('skipMatch') + '?')) return;
+    await store.skipOptional(ui.sheet.id);
+    ui.sheet = null;
+    render();
+  },
+
+  async unskip() {
+    await store.unskip(ui.sheet.id);
+    ui.sheet = null;
+    render();
+  },
+
   'toggle-row'(el) {
     const next = el.nextElementSibling;
     if (next?.classList.contains('st-detail')) next.hidden = !next.hidden;
