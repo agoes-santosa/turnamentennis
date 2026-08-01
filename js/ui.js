@@ -76,10 +76,7 @@ export function renderHeader() {
         </div>
       </div>
       <h1 class="hdr-title">${esc(tn.name)}</h1>
-      <div class="hdr-sub">
-        ${tn.venueName ? `<span>${esc(tn.venueName)}</span><span class="dot">·</span>` : ''}
-        <span>${tn.courts} ${T('court').toLowerCase()}</span>
-      </div>
+      ${tn.venueName ? `<div class="hdr-sub"><span>${esc(tn.venueName)}</span></div>` : ''}
       <div class="progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
         <div class="progress-bar" style="width:${pct}%"></div>
       </div>
@@ -302,7 +299,7 @@ export function renderInfo() {
   }).join(' · ')} · ${tn.slotMinutes} min/${id ? 'partai' : 'match'}</dd>
       </dl>
     </section>
-    <section class="card">${divs}</section>
+    <section class="card"><div class="info-divs">${divs}</div></section>
     <section class="card">
       <h2 class="card-title">${T('help')}</h2>
       <ol class="help-steps">
