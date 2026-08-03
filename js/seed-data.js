@@ -17,9 +17,7 @@ const WOMEN = [
   ['Puspita', 'Dhonna'],
 ];
 
-// 7 pairs, not 8 -- one bye. buildKnockout handles this (bracket of 8, seed 1
-// advances without playing); buildOrderOfPlay no longer burns a schedule slot
-// on a bye match, so the day's real match count and finish time both shift.
+// 8 pairs -- a clean bracket, no bye. Every pair plays a real quarterfinal.
 const MEN = [
   ['Irfan', 'Agoes'],
   ['Daniel', 'Josh'],
@@ -28,6 +26,7 @@ const MEN = [
   ['Ambo', 'Nassar'],
   ['Krisna', 'Firman'],
   ['Lucky', 'Kiki'],
+  ['Arief', 'Igor'],
 ];
 
 export const SCORING = {

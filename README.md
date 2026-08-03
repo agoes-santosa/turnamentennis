@@ -8,13 +8,16 @@ progress, organizers unlock with a PIN and enter scores on the same page.
 | Division | Format | Pairs | Matches | Starts |
 |---|---|---|---|---|
 | Ganda Putri | Round robin + **optional** bronze/final | 4 | 6 required + 2 optional | 07:00 |
-| Ganda Putra | Knockout + bronze | 7 | 7 | 17:00 |
+| Ganda Putra | Knockout + bronze | 8 | 8 | 17:00 |
 
 Women's plays to completion first (the 6 required group matches finish
-~10:30), then a long gap, then Men's runs 17:00 → 20:30 — comfortably inside
-the court's 21:00 closing time, with 30 minutes of slack. Men's has an odd
-pair count, so the top seed (Irfan/Agoes) gets a bye straight to the
-semifinal — a bye plays no match and costs no schedule slot.
+~10:30), then a long gap, then Men's runs 17:00 → **21:00** — landing exactly
+on the court's closing time, with **zero slack**. Men's is now a clean field
+of 8 (no bye) — one more real match than the original 7-pair roster, and that
+extra match used up the 30 minutes of buffer the schedule used to have. Any
+delay, dispute, or a final that runs long pushes past closing time. Worth
+deciding before the event: start Men's earlier than 17:00, or accept the
+risk.
 
 **Women's bronze and final are optional**, condensed to a quick 9-point
 decider (~10 min) if played at all — matches 7 and 8 would otherwise land
@@ -91,9 +94,8 @@ contents of `firestore.rules`, click Publish. (Or use the Firebase CLI —
 
 ### 3. Seed the event
 
-The seed script writes the tournament, both divisions, all 11 pairs, and all
-16 match documents (15 of which are real matches — the men's bracket has one
-bye) in one shot, and sets your PINs as hashes (never plaintext).
+The seed script writes the tournament, both divisions, all 12 pairs, and all
+16 real matches in one shot, and sets your PINs as hashes (never plaintext).
 
 1. **Project Settings → Service Accounts → Generate new private key.** Save
    the downloaded file as `service-account.json` in this folder. It's already
@@ -181,13 +183,15 @@ something with higher stakes.
 
 ## Before the event
 
-- [x] Real player names in `js/seed-data.js` — 4 women's pairs, 7 men's pairs
+- [x] Real player names in `js/seed-data.js` — 4 women's pairs, 8 men's pairs
 - [ ] Confirm the date — 17 Aug 2026 is assumed from "17-an"
 - [ ] Fill in the venue name, address, and Google Maps link (also in
       `seed-data.js`, or added later once an in-app admin editor exists)
-- [ ] If an 8th men's pair shows up, add it to `MEN` in `seed-data.js` and
-      re-run `node seed.mjs` — the bracket goes back to a clean field of 8
-      (no bye), which shifts the schedule later by one 30-minute slot
+- [ ] **Decide on the men's zero-slack final.** With 8 pairs the men's final
+      now ends at exactly 21:00, the court's closing time — no buffer for a
+      delay, dispute, or a long final. Either start Men's earlier than 17:00,
+      or accept the risk. If a 9th pair ever joins, the field goes back to
+      having a bye (7-of-8 shape) and gets 30 minutes of slack back.
 - [ ] Share the link and QR (the Share button in the header) to the venue wall
 
 ---

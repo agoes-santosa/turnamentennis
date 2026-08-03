@@ -5,6 +5,8 @@
 **Event:** Turnamen 17-an Tennis Casman
 **Target:** live for 17 August 2026
 
+**Changes in v1.5:** Men's roster grew to **8 pairs** (Arief/Igor added) — a clean bracket, no bye. Every pair now plays a real quarterfinal, which is one more real match than the 7-pair field had. That extra match consumed the schedule's entire 30-minute buffer: the men's final now ends at **exactly 21:00**, the court's closing time, with **zero slack**. The code doesn't error or warn on this (the `courtCloses` check is strictly `>`, and 21:00 is not greater than 21:00) — it's a real practical risk to decide on before the event, not a bug: start Men's earlier than 17:00, or accept it. §4.5/§4.6's numbers below are updated; the "if an 8th pair joins" note in earlier versions has now happened.
+
 **Changes in v1.4:** Order of Play tab removed — with divisions now playing as two non-overlapping sequential blocks (v1.2) rather than one interleaved queue, it had become a strict subset of what each division's own Matches list already shows; keeping it was pure redundancy, not a second useful view. Tabs reordered to Info → Putri → Putra (Info first, since it's genuinely the first thing worth reading; divisions in play order). Venue row now hides itself entirely when unset instead of showing a placeholder — the venue is understood, not asked about, for this event. Women's round-robin scoring matched to Men's format (one set to 6, no-ad) — it was never actually driving the schedule (see §4.1 vs §4.5/6: the slot spacing was always the uniform 30 minutes, so this is a labelling correction, not a re-timing).
 
 **Changes in v1.3:** Women's bronze and final made **optional** — heat, not format, is the constraint: those two matches would otherwise land in the hottest part of late morning. The round-robin table (6 required matches) is now a legitimate result on its own; bronze/final become a condensed 9-point quick decider (~10 min) that an admin can explicitly skip. Because the standings might now *be* the final result rather than just a tiebreak feeding into a match, the tiebreak order was reconsidered and swapped: **wins → game differential → head-to-head → ratio** (previously head-to-head sat above differential). §4.6 documents both changes and the reasoning. Also: `js/_headers` added to fix a real staleness risk discovered while testing this change — the app has no build step or hashed filenames, so without an explicit `Cache-Control: no-cache`, a deploy's fixes could silently not reach returning visitors.
@@ -37,14 +39,14 @@ Standalone app. Firebase project ("Turnamen Tennis"), own repo, own Netlify site
 | Name | **Turnamen 17-an Tennis Casman** |
 | Date | 17 August 2026 — one day *(confirm; "17-an" implies Independence Day)* |
 | Venue | TBC |
-| Divisions | **Women's Doubles** — 4 pairs, round robin + bronze + final · **Men's Doubles** — 7 pairs, knockout + bronze |
+| Divisions | **Women's Doubles** — 4 pairs, round robin + bronze + final · **Men's Doubles** — 8 pairs, knockout + bronze |
 | Teams | Fixed pairs of two. Doubles only. Displayed as `Player A / Player B` — no team names. |
 | Courts | **1** |
-| Matches | 8 women's + 7 men's = **15 real matches** (16 match documents — one men's quarterfinal is a bye, seed 1 advances without playing) |
-| Schedule | **Two sequential blocks, not concurrent.** Women's 07:00 → ~11:30. Men's 17:00 → ~20:30 (court closes 21:00 — 30 min slack). 30-min slots throughout. |
+| Matches | 8 women's + 8 men's = **16 real matches**, no bye — a clean field |
+| Schedule | **Two sequential blocks, not concurrent.** Women's 07:00 → ~11:30. Men's 17:00 → **21:00 exactly — zero slack** (court closes 21:00). 30-min slots throughout. |
 | Language | Bahasa Indonesia + English |
 
-Men's came in at 7 pairs, an odd field, so the bracket gives the top seed a bye. If an 8th pair joins later, re-seeding returns it to a clean field of 8 and the schedule reverts to 16 real matches ending 16:45.
+Men's grew from 7 pairs to a clean field of 8 (Arief/Igor added, v1.5) — no bye, every pair plays a real quarterfinal. That extra match used up the schedule's entire buffer: the final now ends at exactly 21:00, the court's closing time. If a 9th pair ever joins, the field goes back to having one bye and the 30-minute buffer returns.
 
 ### Goals
 
@@ -224,9 +226,9 @@ Both are per-division flags (`third_place`, `final_between_top_two`), so this is
 
 **Knockout brackets don't have this problem.** Within any round, every entrant is disjoint by construction — QF1 and QF2 can never share a player — so the men's block schedules cleanly with zero forced rest gaps.
 
-**The numbers this produces:** Women's — 6 RR matches with 2 forced 15-min rest gaps ends **~10:30** (the required part); bronze + final, if played, extend it to **~11:30** (see §4.6 — as of v1.3 these are optional). Men's — 3 real quarterfinals + 2 semis + bronze + final, no forced gaps = 17:00 → **20:30**, 30 minutes inside the 21:00 cutoff.
+**The numbers this produces:** Women's — 6 RR matches with 2 forced 15-min rest gaps ends **~10:30** (the required part); bronze + final, if played, extend it to **~11:30** (see §4.6 — as of v1.3 these are optional). Men's — as of v1.5, **4 real quarterfinals** (no bye) + 2 semis + bronze + final, no forced gaps = 17:00 → **21:00 exactly** — the extra quarterfinal from the 8th pair consumed the 30 minutes of buffer the 7-pair field had.
 
-**Data model:** `tournament.blocks` is now an ordered array — `[{ divisionId, start }, ...]` — read directly by both the scheduler and the Info tab, rather than a single `dailyStart`/`breakAfterSlot`/`breakMinutes` on the tournament. `tournament.courtCloses` is checked against the last block's computed end time at seed time, with a console warning (not a hard failure) if it's exceeded — the admin can then shorten match formats or move the start earlier.
+**Data model:** `tournament.blocks` is now an ordered array — `[{ divisionId, start }, ...]` — read directly by both the scheduler and the Info tab, rather than a single `dailyStart`/`breakAfterSlot`/`breakMinutes` on the tournament. `tournament.courtCloses` is checked against the last block's computed end time at seed time, with a console warning (not a hard failure) if it's exceeded. **Known gap surfaced by v1.5's roster change:** the check is strictly `>`, so landing exactly on `courtCloses` (as the men's final now does) doesn't warn — the admin needs to independently notice a zero-slack schedule isn't the same as a schedule that fits comfortably. Worth tightening to `>=` or a small margin if this recurs.
 
 ### 4.6 Women's bronze/final made optional, and why the tiebreak order changed
 
@@ -425,9 +427,9 @@ Phases 1–4 are the August build.
 ## 10. Settled
 
 - **Event:** Turnamen 17-an Tennis Casman · 17 Aug 2026 · one day · 1 court
-- **Divisions:** Women's Doubles, 4 pairs, RR (6 required) + **optional** condensed bronze/final · Men's Doubles, 7 pairs (real roster; one bye), knockout + bronze — sequential, not concurrent, one tournament
+- **Divisions:** Women's Doubles, 4 pairs, RR (6 required) + **optional** condensed bronze/final · Men's Doubles, 8 pairs (real roster, v1.5; no bye — clean field), knockout + bronze — sequential, not concurrent, one tournament
 - **Teams:** fixed pairs of two, displayed `Player A / Player B`; no team names
-- **Matches:** 15 real (16 documents incl. one bye) · 30-minute slots (women's optional bronze/final: 9-point quick decider, ~10 min) · **two sequential blocks**: Women's 07:00 → ~10:30 required / ~11:30 if optional matches played, Men's 17:00 → ~20:30 (court closes 21:00)
+- **Matches:** 16 real, no bye · 30-minute slots (women's optional bronze/final: 9-point quick decider, ~10 min) · **two sequential blocks**: Women's 07:00 → ~10:30 required / ~11:30 if optional matches played, Men's 17:00 → **21:00 exactly, zero slack** (court closes 21:00 — undecided: start earlier, or accept the risk)
 - **App:** standalone, Firebase (Firestore + Anonymous Auth) + Netlify
 - **Language:** Bahasa + English
 - **Role:** Agoes sets up and hands PINs to organizers; handoff and graceful degradation are requirements
@@ -435,9 +437,8 @@ Phases 1–4 are the August build.
 - **Standings tiebreak:** wins → game differential → head-to-head → ratio (swapped from head-to-head-first in v1.3 — see §4.6)
 - **Cut:** pools, court grids, cross-court conflict detection
 
-## 11. Still open — none blocking
+## 11. Still open
 
-1. **Date confirmation** — seeded as 17 Aug 2026 on the strength of "17-an". Editable in the app.
-2. **Venue** — name, city, address, Maps link. Seeded blank.
-3. **Player names** — the 4 women's pairs and 8 men's pairs. Seeded as placeholders; bulk-paste entry is built for exactly this.
-4. **Start time** — seeded 08:00. A later start compresses the tail; the feasibility line will flag it.
+1. **Men's zero-slack final (v1.5, blocking-ish)** — ends at exactly 21:00 with no buffer. Decide before the event: start Men's earlier than 17:00, or accept the risk of running past court closing.
+2. **Date confirmation** — seeded as 17 Aug 2026 on the strength of "17-an". Editable in the app.
+3. **Venue** — name, city, address, Maps link. Still seeded blank.
