@@ -244,6 +244,17 @@ or from Node, which is exactly what `seed.mjs` does with `buildSeed()`.
   it was played, or from the table if the final was explicitly skipped —
   never from a match that's just sitting unplayed, since an organizer might
   still choose to play it.
+- **Quick-entry score fields start blank**, not pre-filled with "0". A field
+  already containing "0" puts the cursor in an unpredictable spot on mobile —
+  tapping "1" can land it before the existing digit and produce "10" instead
+  of "1". Blank only applies when there's no score yet; reopening a match that
+  already has a real score still shows it, since that's genuine data to edit.
+- **Reset** (same underlying action as reopen, `store.reopen()`) is available
+  for any match that isn't still sitting untouched — both a completed match
+  (labelled "Reopen") and one a referee accidentally started scoring
+  (labelled "Reset score"), so a stray tap on the wrong match doesn't need a
+  developer to undo. Open to scorer or admin — it's a courtside undo, not a
+  structural change like skip — and asks for confirmation first.
 - **Order of play** runs as sequential blocks (`tournament.blocks` in
   `js/seed-data.js` — currently Women's at 07:00, then Men's at 17:00), each
   with its own start clock. Within a block, knockout dependencies are

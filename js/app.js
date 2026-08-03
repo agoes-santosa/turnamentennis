@@ -169,6 +169,10 @@ const actions = {
   },
 
   async reopen() {
+    const T = makeT(store.lang);
+    const m = store.state.matches.find((x) => x.id === ui.sheet.id);
+    const label = m?.status === 'completed' ? T('reopen') : T('resetMatch');
+    if (!confirm(`${label}?`)) return;
     await store.reopen(ui.sheet.id);
     ui.sheet = null;
     render();

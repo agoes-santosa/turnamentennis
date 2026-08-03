@@ -327,6 +327,12 @@ export function renderSheet(matchId, mode = 'quick') {
   const sets = m.score?.sets ?? [{ home: 0, away: 0 }];
   const hs = Number(sets[0]?.home) || 0;
   const as = Number(sets[0]?.away) || 0;
+  // Quick-entry fields start blank rather than pre-filled "0" -- typing into a
+  // field that already contains "0" can land the new digit on either side of
+  // it depending on where the cursor happens to be, turning a tapped "1" into
+  // "10" instead of "1". Only pre-fill when there's a real score to edit.
+  const hsInput = m.score ? hs : '';
+  const asInput = m.score ? as : '';
 
   const skipRow = m.optional && store.role === 'admin'
     ? m.status === 'skipped'
@@ -334,6 +340,15 @@ export function renderSheet(matchId, mode = 'quick') {
       : m.status !== 'completed'
         ? `<div class="sheet-actions"><button class="btn ghost skip" data-act="skip">${T('skipMatch')}</button></div>`
         : ''
+    : '';
+
+  // Reset covers two real situations: undoing a completed match to fix a
+  // mistake, and clearing an in-progress one a referee started by accident.
+  // Available to scorer or admin -- it's the courtside undo, not a
+  // structural change like skip.
+  const canReset = canScore && (m.status === 'completed' || m.status === 'in_progress');
+  const resetRow = canReset
+    ? `<div class="sheet-actions"><button class="btn ghost reset" data-act="reopen">${m.status === 'completed' ? T('reopen') : T('resetMatch')}</button></div>`
     : '';
 
   const body = m.status === 'skipped'
@@ -357,12 +372,11 @@ export function renderSheet(matchId, mode = 'quick') {
              </div>`
           : `<div class="quick">
                <label><span>${sideName(m, 'home')}</span>
-                 <input type="number" inputmode="numeric" min="0" max="99" id="sc-home" value="${hs}"></label>
+                 <input type="number" inputmode="numeric" min="0" max="99" id="sc-home" placeholder="0" value="${hsInput}"></label>
                <label><span>${sideName(m, 'away')}</span>
-                 <input type="number" inputmode="numeric" min="0" max="99" id="sc-away" value="${as}"></label>
+                 <input type="number" inputmode="numeric" min="0" max="99" id="sc-away" placeholder="0" value="${asInput}"></label>
              </div>
              <div class="sheet-actions">
-               ${m.status === 'completed' ? `<button class="btn ghost" data-act="reopen">${T('reopen')}</button>` : ''}
                <button class="btn ghost" data-act="mode" data-mode="live">${T('liveScoring')}</button>
                <button class="btn" data-act="save">${T('saveScore')}</button>
              </div>`;
@@ -380,6 +394,7 @@ export function renderSheet(matchId, mode = 'quick') {
         <div>${sideName(m, 'away')}</div>
       </div>
       ${body}
+      ${resetRow}
       ${skipRow}
     </div>`;
 }
