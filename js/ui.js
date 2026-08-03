@@ -10,25 +10,40 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
 
 const t = () => makeT(store.lang);
 
+/** What to show when a slot isn't decided yet -- "Winner QF1", "#1", "Bye". */
+function unresolvedLabel(src) {
+  const T = t();
+  if (!src) return T('bye');
+  if (src.type === 'winner') return `${T('winnerOf')} ${T.stageShort(srcStage(src.label))}${srcNum(src.label)}`;
+  if (src.type === 'loser') return `${T('loserOf')} ${T.stageShort(srcStage(src.label))}${srcNum(src.label)}`;
+  return src.label;
+}
+
 /**
- * A team's display name, or — when the slot is undecided — a label saying where
- * its occupant comes from ("Pemenang PF1", "#1"). Never a blank cell: a pending
- * slot must read as pending, not as broken.
+ * A team's display name as one string ("Augtri / Vebi"), or — when the slot
+ * is undecided — a label saying where its occupant comes from. Used wherever
+ * a single line is enough (bracket cards, the sheet header).
  */
 function sideName(match, slot) {
-  const T = t();
   const id = match[`${slot}TeamId`];
   if (id) return esc(store.team(id)?.name ?? '?');
+  return `<span class="tbd">${esc(unresolvedLabel(match[`${slot}Source`]))}</span>`;
+}
 
-  const src = match[`${slot}Source`];
-  if (!src) return `<span class="tbd">${T('bye')}</span>`;
-
-  let label;
-  if (src.type === 'winner') label = `${T('winnerOf')} ${T.stageShort(srcStage(src.label))}${srcNum(src.label)}`;
-  else if (src.type === 'loser') label = `${T('loserOf')} ${T.stageShort(srcStage(src.label))}${srcNum(src.label)}`;
-  else label = src.label;
-
-  return `<span class="tbd">${esc(label)}</span>`;
+/**
+ * A doubles team as two separate lines, one player per line, for layouts that
+ * put the two sides side by side rather than stacked -- there's no need to
+ * squeeze both players onto one line when they each get their own row.
+ */
+function teamLines(match, slot) {
+  const id = match[`${slot}TeamId`];
+  if (id) {
+    const team = store.state.teams.find((x) => x.id === id);
+    const p1 = esc(store.player(team?.player1Id)?.name ?? '?');
+    const p2 = esc(store.player(team?.player2Id)?.name ?? '?');
+    return `<span class="team-line">${p1}</span><span class="team-line">${p2}</span>`;
+  }
+  return `<span class="tbd">${esc(unresolvedLabel(match[`${slot}Source`]))}</span>`;
 }
 
 const srcStage = (label) => label.replace(/\d/g, '');
@@ -251,13 +266,22 @@ function renderMatchList(divisionId) {
   return `<section class="card">
       <h2 class="card-title">${T('matches')}</h2>
       <ul class="ml">
-        ${ms.map((m) => `
+        ${ms.map((m) => {
+    const winner = m.winnerTeamId;
+    return `
           <li class="ml-row ${statusClass(m)}" data-act="open-match" data-id="${m.id}" tabindex="0" role="button">
-            <span class="ml-stage">${t().stage(m.stage)}${m.optional ? ` · ${T('optional')}` : ''}</span>
-            <span class="ml-pairs">${sideName(m, 'home')}<br>${sideName(m, 'away')}</span>
-            <span class="ml-score">${m.status === 'completed' ? esc(summarise(m.score))
-    : m.status === 'skipped' ? T('skipped') : esc(m.startTime ?? '')}</span>
-          </li>`).join('')}
+            <div class="ml-meta">
+              <span class="ml-stage">${t().stage(m.stage)}${m.optional ? ` · ${T('optional')}` : ''}</span>
+              <span class="ml-score">${m.status === 'completed' ? esc(summarise(m.score))
+      : m.status === 'skipped' ? T('skipped') : esc(m.startTime ?? '')}</span>
+            </div>
+            <div class="ml-matchup">
+              <div class="ml-team ${winner && winner === m.homeTeamId ? 'won' : ''}">${teamLines(m, 'home')}</div>
+              <span class="ml-vs">–</span>
+              <div class="ml-team ml-team-away ${winner && winner === m.awayTeamId ? 'won' : ''}">${teamLines(m, 'away')}</div>
+            </div>
+          </li>`;
+  }).join('')}
       </ul>
     </section>`;
 }
@@ -371,15 +395,24 @@ export function renderSheet(matchId, mode = 'quick') {
                <button class="btn" data-act="finish">${T('saveScore')}</button>
              </div>`
           : `<div class="quick">
-               <label><span>${sideName(m, 'home')}</span>
-                 <input type="number" inputmode="numeric" min="0" max="99" id="sc-home" placeholder="0" value="${hsInput}"></label>
-               <label><span>${sideName(m, 'away')}</span>
-                 <input type="number" inputmode="numeric" min="0" max="99" id="sc-away" placeholder="0" value="${asInput}"></label>
+               <div class="quick-team quick-team-home">${sideName(m, 'home')}</div>
+               <div class="quick-inputs">
+                 <input type="number" inputmode="numeric" min="0" max="99" id="sc-home" placeholder="0" value="${hsInput}">
+                 <span class="quick-vs">–</span>
+                 <input type="number" inputmode="numeric" min="0" max="99" id="sc-away" placeholder="0" value="${asInput}">
+               </div>
+               <div class="quick-team quick-team-away">${sideName(m, 'away')}</div>
              </div>
              <div class="sheet-actions">
                <button class="btn ghost" data-act="mode" data-mode="live">${T('liveScoring')}</button>
                <button class="btn" data-act="save">${T('saveScore')}</button>
              </div>`;
+
+  // Quick-entry lays team names either side of the inputs itself, so showing
+  // them a second time above would just repeat what's already on screen.
+  // Every other state (live mode, not-yet-scoreable, skipped) has no other
+  // place names appear, so it stays.
+  const showTeamsBlock = !(canScore && bothKnown && m.status !== 'skipped' && mode === 'quick');
 
   return `
     <div class="sheet-backdrop" data-act="close-sheet"></div>
@@ -389,10 +422,11 @@ export function renderSheet(matchId, mode = 'quick') {
         <span class="sheet-div">${esc(div.short[store.lang] ?? div.short.en)} · ${t().stage(m.stage)}${m.optional ? ` · ${T('optional')}` : ''}</span>
         <span class="sheet-time">${esc(m.startTime ?? '')}</span>
       </div>
-      <div class="sheet-teams">
-        <div>${sideName(m, 'home')}</div>
-        <div>${sideName(m, 'away')}</div>
-      </div>
+      ${showTeamsBlock ? `
+        <div class="sheet-teams">
+          <div>${sideName(m, 'home')}</div>
+          <div>${sideName(m, 'away')}</div>
+        </div>` : ''}
       ${body}
       ${resetRow}
       ${skipRow}

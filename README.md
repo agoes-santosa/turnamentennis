@@ -255,6 +255,16 @@ or from Node, which is exactly what `seed.mjs` does with `buildSeed()`.
   (labelled "Reset score"), so a stray tap on the wrong match doesn't need a
   developer to undo. Open to scorer or admin — it's a courtside undo, not a
   structural change like skip — and asks for confirmation first.
+- **Score entry and the match list both avoid showing a team's name twice.**
+  The quick-entry sheet no longer repeats names above the inputs it already
+  labels either side of — team A left, score boxes centered, team B right.
+  The Matches list shows each doubles pair as two stacked player lines (one
+  per row) rather than the whole pair joined into one string, with the two
+  sides sitting left and right instead of stacked top and bottom. `sideName()`
+  (one joined string — bracket cards, the sheet header) and `teamLines()` (two
+  separate lines — these two spots) share the same placeholder logic
+  (`unresolvedLabel()`) for an undecided slot, so "Winner QF1" reads the same
+  wherever it shows up.
 - **Order of play** runs as sequential blocks (`tournament.blocks` in
   `js/seed-data.js` — currently Women's at 07:00, then Men's at 17:00), each
   with its own start clock. Within a block, knockout dependencies are
