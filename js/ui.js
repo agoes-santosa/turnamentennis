@@ -392,9 +392,15 @@ export function renderSheet(matchId, mode = 'quick') {
           : 'Pairs not decided yet — finish the feeding matches first.'}</p>`
         : mode === 'live'
           ? `<div class="live-pad">
-               <button class="pt" data-act="pt" data-side="home">+1</button>
+               <div class="live-side">
+                 <div class="live-name">${sideName(m, 'home')}</div>
+                 <button class="pt" data-act="pt" data-side="home">+1</button>
+               </div>
                <div class="pt-score"><b>${hs}</b><span>–</span><b>${as}</b></div>
-               <button class="pt" data-act="pt" data-side="away">+1</button>
+               <div class="live-side">
+                 <div class="live-name">${sideName(m, 'away')}</div>
+                 <button class="pt" data-act="pt" data-side="away">+1</button>
+               </div>
              </div>
              <div class="sheet-actions">
                <button class="btn ghost" data-act="undo">${T('undo')}</button>
@@ -415,11 +421,11 @@ export function renderSheet(matchId, mode = 'quick') {
                <button class="btn" data-act="save">${T('saveScore')}</button>
              </div>`;
 
-  // Quick-entry lays team names either side of the inputs itself, so showing
-  // them a second time above would just repeat what's already on screen.
-  // Every other state (live mode, not-yet-scoreable, skipped) has no other
-  // place names appear, so it stays.
-  const showTeamsBlock = !(canScore && bothKnown && m.status !== 'skipped' && mode === 'quick');
+  // Both quick-entry and live mode lay team names either side of the scoring
+  // widget itself now, so showing them a second time above would just repeat
+  // what's already on screen. Only the remaining states -- not-yet-scoreable,
+  // no PIN, skipped -- have no other place names appear, so it stays for those.
+  const showTeamsBlock = !(canScore && bothKnown && m.status !== 'skipped');
 
   return `
     <div class="sheet-backdrop" data-act="close-sheet"></div>

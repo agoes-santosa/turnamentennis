@@ -268,13 +268,16 @@ or from Node, which is exactly what `seed.mjs` does with `buildSeed()`.
   mistake. `nextMatch()` still suggests the next untouched match in printed
   order — a reasonable default, not a constraint anyone has to follow.
 - **Score entry and the match list both avoid showing a team's name twice.**
-  The quick-entry sheet no longer repeats names above the inputs it already
-  labels either side of — team A left, score boxes centered, team B right.
-  The Matches list shows each doubles pair as two stacked player lines (one
-  per row) rather than the whole pair joined into one string, with the two
-  sides sitting left and right instead of stacked top and bottom. `sideName()`
-  (one joined string — bracket cards, the sheet header) and `teamLines()` (two
-  separate lines — these two spots) share the same placeholder logic
+  Both quick-entry and live-scoring modes lay team names either side of their
+  own scoring widget — team A left, team B right — rather than repeating a
+  separate header block above. Live mode specifically: each name sits
+  directly above its own `+1` button, not both names stacked together on one
+  side. The Matches list shows each doubles pair as two stacked player lines
+  (one per row) rather than the whole pair joined into one string, with the
+  two sides sitting left and right instead of stacked top and bottom.
+  `sideName()` (one joined string — bracket cards, the sheet header) and
+  `teamLines()` (two separate lines — these two spots) share the same
+  placeholder logic
   (`unresolvedLabel()`) for an undecided slot, so "Winner QF1" reads the same
   wherever it shows up.
 - **Order of play** runs as sequential blocks (`tournament.blocks` in
