@@ -146,8 +146,11 @@ export function renderNowOnCourt() {
         <span class="now-div">${esc(div.short[store.lang] ?? div.short.en)} · ${t().stage(m.stage)}</span>
       </div>
       <div class="now-teams">
-        <div class="now-team"><span>${sideName(m, 'home')}</span><b>${isLive ? hs : ''}</b></div>
-        <div class="now-team"><span>${sideName(m, 'away')}</span><b>${isLive ? as : ''}</b></div>
+        <div class="now-team now-team-home">${sideName(m, 'home')}</div>
+        <div class="now-score">${isLive
+    ? `<b>${hs}</b><span class="now-vs">–</span><b>${as}</b>`
+    : `<span class="now-vs">–</span>`}</div>
+        <div class="now-team now-team-away">${sideName(m, 'away')}</div>
       </div>
       ${upNext ? `<div class="now-next">${T('upNext')} · ${esc(upNext.startTime ?? '')} — ${sideName(upNext, 'home')} v ${sideName(upNext, 'away')}</div>` : ''}
       ${store.can('score') ? `<button class="now-cta" data-act="open-match" data-id="${m.id}">${T('tapToScore')}</button>` : ''}
