@@ -255,6 +255,18 @@ or from Node, which is exactly what `seed.mjs` does with `buildSeed()`.
   (labelled "Reset score"), so a stray tap on the wrong match doesn't need a
   developer to undo. Open to scorer or admin — it's a courtside undo, not a
   structural change like skip — and asks for confirmation first.
+- **Play doesn't have to follow the printed order.** This is a recreational
+  event — someone arrives late, someone leaves early, and the actual sequence
+  on court will drift from `playOrder`. `store.startMatch()` flags *any*
+  scheduled match as live immediately (score 0-0, status `in_progress`),
+  regardless of where it sits in the schedule, via a **Start** button on that
+  match's sheet. `liveMatch()` already searches every match for whichever one
+  is `in_progress` rather than assuming it's the next one in sequence, so "Now
+  On Court" reflects whichever match actually gets started, not the plan.
+  Starting a second match while another is still marked live asks for
+  confirmation first, in case the previous one was just left unfinished by
+  mistake. `nextMatch()` still suggests the next untouched match in printed
+  order — a reasonable default, not a constraint anyone has to follow.
 - **Score entry and the match list both avoid showing a team's name twice.**
   The quick-entry sheet no longer repeats names above the inputs it already
   labels either side of — team A left, score boxes centered, team B right.

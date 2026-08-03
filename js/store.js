@@ -330,6 +330,24 @@ export const store = {
     this.state.log = this.state.log.slice(0, 200);
   },
 
+  /**
+   * Flag a match as live right now, independent of its position in the
+   * printed schedule. This is a recreational event -- players arrive late or
+   * leave early, and the actual order on court won't always match the
+   * planned playOrder. `liveMatch()` already finds whichever match is
+   * in_progress regardless of order; the missing piece was a way to mark one
+   * that way without going through the live scoring pad's first point.
+   */
+  async startMatch(matchId) {
+    const m = this.state.matches.find((x) => x.id === matchId);
+    if (!m || m.status !== 'scheduled') return;
+    m.status = 'in_progress';
+    m.score = { sets: [{ home: 0, away: 0 }] };
+    this.logEvent('start', m.label);
+    this.recompute();
+    await this.persist();
+  },
+
   async setScore(matchId, sets, { complete = true } = {}) {
     const m = this.state.matches.find((x) => x.id === matchId);
     if (!m) return;

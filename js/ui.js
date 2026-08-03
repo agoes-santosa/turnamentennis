@@ -332,6 +332,9 @@ export function renderInfo() {
       <ol class="help-steps">
         <li>${id ? 'Ketuk <b>Masukkan PIN</b> di atas, isi PIN panitia.' : 'Tap <b>Enter PIN</b> above and type the organizer PIN.'}</li>
         <li>${id ? 'Ketuk pertandingan mana pun untuk mengisi skor.' : 'Tap any match to enter its score.'}</li>
+        <li>${id
+    ? 'Urutan main boleh berubah (ada yang datang telat/pulang duluan) — ketuk pertandingan yang benar-benar sedang main, lalu tekan <b>Mulai</b>.'
+    : 'Play order can shift (someone arrives late or leaves early) — tap whichever match is actually being played and hit <b>Start</b>.'}</li>
         <li>${id ? 'Salah isi? Buka lagi pertandingannya lalu ubah.' : 'Wrong score? Reopen the match and change it.'}</li>
       </ol>
       <p class="card-note">${id
@@ -407,6 +410,7 @@ export function renderSheet(matchId, mode = 'quick') {
                <div class="quick-team quick-team-away">${sideName(m, 'away')}</div>
              </div>
              <div class="sheet-actions">
+               ${m.status === 'scheduled' ? `<button class="btn ghost start" data-act="start">${T('startMatch')}</button>` : ''}
                <button class="btn ghost" data-act="mode" data-mode="live">${T('liveScoring')}</button>
                <button class="btn" data-act="save">${T('saveScore')}</button>
              </div>`;

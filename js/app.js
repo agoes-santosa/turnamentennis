@@ -126,6 +126,19 @@ const actions = {
 
   mode(el) { ui.sheet = { ...ui.sheet, mode: el.dataset.mode }; render(); },
 
+  async start() {
+    const already = store.liveMatch();
+    if (already && already.id !== ui.sheet.id) {
+      const msg = store.lang === 'id'
+        ? `${already.label} masih ditandai berlangsung. Mulai pertandingan ini juga?`
+        : `${already.label} is still marked live. Start this match too?`;
+      if (!confirm(msg)) return;
+    }
+    await store.startMatch(ui.sheet.id);
+    ui.sheet = { ...ui.sheet, mode: 'live' };
+    render();
+  },
+
   async save() {
     const h = Number(document.getElementById('sc-home')?.value) || 0;
     const a = Number(document.getElementById('sc-away')?.value) || 0;
