@@ -391,16 +391,14 @@ export function renderSheet(matchId, mode = 'quick') {
           ? 'Pasangan belum ditentukan — selesaikan pertandingan sebelumnya dulu.'
           : 'Pairs not decided yet — finish the feeding matches first.'}</p>`
         : mode === 'live'
-          ? `<div class="live-pad">
-               <div class="live-side">
-                 <div class="live-name">${sideName(m, 'home')}</div>
-                 <button class="pt" data-act="pt" data-side="home">+1</button>
-               </div>
+          ? `<div class="live-names">
+               <div class="live-name">${sideName(m, 'home')}</div>
+               <div class="live-name live-name-away">${sideName(m, 'away')}</div>
+             </div>
+             <div class="live-pad">
+               <button class="pt" data-act="pt" data-side="home">+1</button>
                <div class="pt-score"><b>${hs}</b><span>–</span><b>${as}</b></div>
-               <div class="live-side">
-                 <div class="live-name">${sideName(m, 'away')}</div>
-                 <button class="pt" data-act="pt" data-side="away">+1</button>
-               </div>
+               <button class="pt" data-act="pt" data-side="away">+1</button>
              </div>
              <div class="sheet-actions">
                <button class="btn ghost" data-act="undo">${T('undo')}</button>

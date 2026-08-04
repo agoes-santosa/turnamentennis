@@ -255,18 +255,29 @@ or from Node, which is exactly what `seed.mjs` does with `buildSeed()`.
   (labelled "Reset score"), so a stray tap on the wrong match doesn't need a
   developer to undo. Open to scorer or admin — it's a courtside undo, not a
   structural change like skip — and asks for confirmation first.
-- **Play doesn't have to follow the printed order.** This is a recreational
-  event — someone arrives late, someone leaves early, and the actual sequence
-  on court will drift from `playOrder`. `store.startMatch()` flags *any*
-  scheduled match as live immediately (score 0-0, status `in_progress`),
-  regardless of where it sits in the schedule, via a **Start** button on that
-  match's sheet. `liveMatch()` already searches every match for whichever one
-  is `in_progress` rather than assuming it's the next one in sequence, so "Now
-  On Court" reflects whichever match actually gets started, not the plan.
+- **Play doesn't have to follow the printed order, and the clock actually
+  updates when it doesn't.** This is a recreational event — someone arrives
+  late, someone leaves early, and the actual sequence on court will drift
+  from `playOrder`. A **Start** button flags any scheduled match as live
+  immediately, regardless of where it sits in the schedule (the same happens
+  automatically on the first live point, or on saving a quick-entry score
+  directly — whichever a referee actually uses). `store._beginMatch()` then
+  calls `engine.js`'s `reflowDivision()`, which re-derives times for every
+  other still-scheduled match in that division from the current real state —
+  same dependency and rest-gap rules as the original schedule, just re-run
+  against reality instead of the plan. So if match 2 actually starts first,
+  it takes 07:00 and match 1 (not yet reached) shows 07:30, not the reverse.
+  `playOrder` is recomputed from the resulting times after every reflow.
+  A match that transitively depends on one still in progress (e.g. a
+  semifinal whose feeding quarterfinal hasn't finished) shows no time at all
+  — genuinely TBD, the same way its opponent already shows as "Winner QF1"
+  rather than a guess — and resolves automatically once that blocking match
+  completes, which triggers a second reflow. `liveMatch()` searches every
+  match for whichever one is `in_progress` regardless of order, so "Now On
+  Court" reflects whichever match actually gets started, not the plan.
   Starting a second match while another is still marked live asks for
   confirmation first, in case the previous one was just left unfinished by
-  mistake. `nextMatch()` still suggests the next untouched match in printed
-  order — a reasonable default, not a constraint anyone has to follow.
+  mistake.
 - **Score entry and the match list both avoid showing a team's name twice.**
   Both quick-entry and live-scoring modes lay team names either side of their
   own scoring widget — team A left, team B right — rather than repeating a

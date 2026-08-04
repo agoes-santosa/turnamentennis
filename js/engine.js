@@ -408,12 +408,20 @@ const toHHMM = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:$
  * A bye has no match to play, so it consumes no schedule slot at all — its
  * result is known the moment the bracket is built, not on the day.
  */
-function scheduleBlock(matches, { start, slotMinutes, gapMinutes = 0, restMinutes = 15 }) {
+function scheduleBlock(matches, {
+  start, slotMinutes, gapMinutes = 0, restMinutes = 15, resolved = [], prevMatch = null,
+}) {
   const byes = matches.filter((m) => m.isBye);
   const real = matches.filter((m) => !m.isBye);
   for (const m of real) { m.playOrder = undefined; m.startTime = undefined; }
 
   const doneAt = new Map(byes.map((m) => [m.id, -Infinity]));
+  // `resolved` seeds already-known results (from a live reflow -- see
+  // reflowAfterStart) so matches depending on them see the real finish time,
+  // not just what the original once-at-seed-time plan assumed.
+  for (const m of resolved) {
+    if (m.status === 'completed' && m.startTime) doneAt.set(m.id, toMin(m.startTime) + slotMinutes);
+  }
   const teamsOf = (m) => [m.homeTeamId, m.awayTeamId].filter(Boolean);
   const readyAt = (m) => (m.deps.length
     ? Math.max(...m.deps.map((d) => (doneAt.get(d) ?? Infinity) + gapMinutes))
@@ -427,11 +435,18 @@ function scheduleBlock(matches, { start, slotMinutes, gapMinutes = 0, restMinute
     const ready = pending.filter((m) => !doneAt.has(m.id) && readyAt(m) <= clock);
     if (!ready.length) {
       const upcoming = pending.filter((m) => !doneAt.has(m.id));
-      clock = Math.min(...upcoming.map(readyAt));
+      const nextReady = Math.min(...upcoming.map(readyAt));
+      // Nothing left can ever become ready in this pass -- it's waiting on a
+      // match that's in progress but not yet resolved (a live reflow only,
+      // never at seed time), so its winner genuinely isn't known yet. Leave
+      // it TBD -- undefined startTime, same as its still-unresolved team
+      // slots -- rather than looping forever or computing NaN:NaN.
+      if (!Number.isFinite(nextReady)) break;
+      clock = nextReady;
       continue;
     }
 
-    const prev = placed[placed.length - 1];
+    const prev = placed[placed.length - 1] ?? prevMatch;
     const prevTeams = prev ? teamsOf(prev) : [];
     const safe = ready.find((m) => !teamsOf(m).some((t) => prevTeams.includes(t)));
     const pick = safe ?? ready[0];
@@ -444,6 +459,36 @@ function scheduleBlock(matches, { start, slotMinutes, gapMinutes = 0, restMinute
   }
 
   return { placed, endTime: toHHMM(clock) };
+}
+
+/**
+ * Re-flow the still-`scheduled` matches in one division against whatever's
+ * actually happened so far -- a recreational event where players arrive late
+ * or leave early, so the true sequence on court drifts from what was
+ * printed. Reads the division's *current* state rather than needing to be
+ * told what just changed, so it's safe to call after any of: a match begins
+ * out of order, a match completes (which can unblock a dependent that was
+ * previously TBD -- see scheduleBlock's early-exit), or nothing relevant
+ * changed at all (a no-op, since nothing pending needs to move). Matches
+ * already completed or in progress keep their own times untouched.
+ */
+export function reflowDivision(divisionMatches, { slotMinutes, gapMinutes = 0, restMinutes = 15, defaultStart }) {
+  const resolved = divisionMatches.filter((m) => m.isBye || m.status === 'completed');
+  const occupied = divisionMatches.filter((m) => m.status !== 'scheduled' && !m.isBye);
+  const pending = divisionMatches.filter((m) => m.status === 'scheduled' && !m.isBye);
+  if (!pending.length) return [];
+
+  const lastEnd = occupied.length
+    ? Math.max(...occupied.map((m) => toMin(m.startTime) + slotMinutes))
+    : toMin(defaultStart);
+  const prevMatch = occupied.length
+    ? occupied.reduce((a, b) => (toMin(a.startTime) > toMin(b.startTime) ? a : b))
+    : null;
+
+  const { placed } = scheduleBlock(pending, {
+    start: toHHMM(lastEnd), slotMinutes, gapMinutes, restMinutes, resolved, prevMatch,
+  });
+  return placed;
 }
 
 /**

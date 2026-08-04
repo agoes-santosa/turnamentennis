@@ -5,7 +5,7 @@
 // calls, same shapes, so nothing above this file needs to know which is active.
 
 import {
-  propagate, seedRRPlayoffs, standings, STAGE, uid,
+  propagate, seedRRPlayoffs, standings, reflowDivision, fmt, STAGE, uid,
 } from './engine.js';
 import { buildSeed } from './seed-data.js';
 import { FIREBASE } from './config.js';
@@ -331,17 +331,54 @@ export const store = {
   },
 
   /**
-   * Flag a match as live right now, independent of its position in the
-   * printed schedule. This is a recreational event -- players arrive late or
-   * leave early, and the actual order on court won't always match the
-   * planned playOrder. `liveMatch()` already finds whichever match is
-   * in_progress regardless of order; the missing piece was a way to mark one
-   * that way without going through the live scoring pad's first point.
+   * Re-derive the schedule for one division from its current state -- a
+   * recreational event, players arrive late or leave early, so the true
+   * order on court drifts from the printed playOrder. Safe to call any time
+   * something might have changed: a match beginning out of order, a match
+   * completing (which can unblock a dependent that was left TBD -- see
+   * engine.js's reflowDivision), or nothing relevant at all (a no-op).
    */
+  _reflowDivision(divisionId) {
+    const divMatches = this.matchesOf(divisionId);
+    const block = this.state.tournament.blocks?.find((b) => b.divisionId === divisionId);
+    reflowDivision(divMatches, {
+      slotMinutes: this.state.tournament.slotMinutes,
+      defaultStart: block?.start ?? '00:00',
+    });
+    this._renumberPlayOrder();
+  },
+
+  /** playOrder always follows actual startTime, recomputed after a reflow. */
+  _renumberPlayOrder() {
+    const real = this.state.matches.filter((m) => !m.isBye);
+    real.sort((a, b) => (a.startTime ?? '99:99').localeCompare(b.startTime ?? '99:99'));
+    real.forEach((m, i) => { m.playOrder = i + 1; });
+  },
+
+  /**
+   * Pin `m` to whatever slot is actually next right now, then reflow the
+   * rest of its division. Called from every path that moves a match off
+   * 'scheduled' (the Start button, the first live point, or saving a
+   * quick-entry score directly), so this happens exactly once regardless of
+   * which one a referee actually uses. No-op if already begun.
+   */
+  _beginMatch(m) {
+    if (m.status !== 'scheduled') return;
+    const divMatches = this.matchesOf(m.divisionId);
+    const occupied = divMatches.filter((x) => x.id !== m.id && x.status !== 'scheduled' && !x.isBye);
+    const block = this.state.tournament.blocks?.find((b) => b.divisionId === m.divisionId);
+    const lastEnd = occupied.length
+      ? Math.max(...occupied.map((x) => fmt.toMin(x.startTime) + this.state.tournament.slotMinutes))
+      : fmt.toMin(block?.start ?? '00:00');
+    m.startTime = fmt.toHHMM(lastEnd);
+    m.status = 'in_progress';
+    this._reflowDivision(m.divisionId);
+  },
+
   async startMatch(matchId) {
     const m = this.state.matches.find((x) => x.id === matchId);
     if (!m || m.status !== 'scheduled') return;
-    m.status = 'in_progress';
+    this._beginMatch(m);
     m.score = { sets: [{ home: 0, away: 0 }] };
     this.logEvent('start', m.label);
     this.recompute();
@@ -351,6 +388,7 @@ export const store = {
   async setScore(matchId, sets, { complete = true } = {}) {
     const m = this.state.matches.find((x) => x.id === matchId);
     if (!m) return;
+    this._beginMatch(m);
     const before = m.score ? summarise(m.score) : '—';
     m.score = { sets };
     if (complete) {
@@ -359,6 +397,10 @@ export const store = {
       if (h !== a) {
         m.status = 'completed';
         m.winnerTeamId = h > a ? m.homeTeamId : m.awayTeamId;
+        // Completing a match can unblock a dependent left TBD -- e.g. a
+        // semifinal whose own time couldn't be known until this one's
+        // winner was decided. Re-check now that it is.
+        this._reflowDivision(m.divisionId);
       }
     } else {
       m.status = 'in_progress';
