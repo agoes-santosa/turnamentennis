@@ -198,8 +198,11 @@ table { border-collapse: collapse; width: 100%; }
 /* ---------------- shuffle panel ---------------- */
 
 .shuffle-card { border-left: 3px solid var(--c); padding: 12px 14px; }
-.shuffle-pending { text-align: center; }
-.shuffle-status { margin: 0 0 10px; font-size: 13px; color: var(--ink-2); }
+.shuffle-pending {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; min-height: 44px; text-align: center;
+}
+.shuffle-status { margin: 0; font-size: 13px; color: var(--ink-2); }
 .btn.shuffle-btn { min-height: 40px; font-size: 13px; padding: 0 20px; }
 .shuffle-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .shuffle-check { font-size: 13px; font-weight: 700; color: var(--c); }
