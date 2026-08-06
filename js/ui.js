@@ -183,9 +183,11 @@ function renderStandings(divisionId) {
       </tr>
       <tr class="st-detail" hidden>
         <td colspan="5">
-          <span>${T('gamesFor')} <b>${r.gf}</b></span>
-          <span>${T('gamesAgainst')} <b>${r.ga}</b></span>
-          <span>${T('ratio')} <b>${r.ratio.toFixed(2)}</b></span>
+          ${T('gamesFor')} <b>${r.gf}</b>
+          <span class="st-detail-dot">·</span>
+          ${T('gamesAgainst')} <b>${r.ga}</b>
+          <span class="st-detail-dot">·</span>
+          ${T('ratio')} <b>${r.ratio.toFixed(2)}</b>
         </td>
       </tr>`;
   }).join('');
