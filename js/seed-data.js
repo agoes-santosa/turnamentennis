@@ -93,6 +93,9 @@ export function buildSeed() {
       short: { en: "Men's", id: 'Putra' },
       format: 'knockout', colour: '#2f7fe0', status: 'open',
       thirdPlace: false, finalBetweenTopTwo: false,
+      // Real-life matchups aren't decided yet -- the bracket seeds as TBA and
+      // an organizer runs the live draw from the app (see store.js's
+      // shuffleQuarterfinals, which logs each draw/redraw to eventLog).
       scoring: SCORING.standard, finalScoring: SCORING.final,
     },
   ];
@@ -115,7 +118,7 @@ export function buildSeed() {
 
   const wRR = buildRoundRobin('div_w', wTeams.map((t) => t.id));
   const wPlayoffs = buildRRPlayoffs('div_w', wRR, { thirdPlace: false, final: true, optional: true });
-  const mKO = buildKnockout('div_m', mTeams.map((t) => t.id), { thirdPlace: false });
+  const mKO = buildKnockout('div_m', mTeams.map((t) => t.id), { thirdPlace: false, seeded: false });
 
   const matches = [...wRR, ...wPlayoffs, ...mKO];
   const { blocks } = buildOrderOfPlay(
@@ -132,5 +135,7 @@ export function buildSeed() {
     );
   }
 
-  return { tournament, divisions, players, teams, matches, log: [] };
+  return {
+    tournament, divisions, players, teams, matches, log: [], eventLog: [],
+  };
 }

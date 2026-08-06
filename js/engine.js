@@ -106,8 +106,15 @@ function roundStages(rounds) {
  * Build a full single-elimination bracket in one pass.
  * `teamIds` is in seed order (index 0 = seed 1). Missing slots become byes.
  * Returns { matches } with next-match links already wired and byes pre-advanced.
+ *
+ * `seeded: false` builds the full bracket structure -- every round, every
+ * dependency link -- but leaves round 1 genuinely undetermined (`TBA` on
+ * both sides) instead of seating teamIds immediately. Use this when the
+ * actual matchups haven't been decided yet and will be drawn live later via
+ * shuffleFirstRound(); the schedule (which stage plays when) doesn't depend
+ * on who's in it, so there's nothing else to defer.
  */
-export function buildKnockout(divisionId, teamIds, { thirdPlace = false } = {}) {
+export function buildKnockout(divisionId, teamIds, { thirdPlace = false, seeded = true } = {}) {
   const n = teamIds.length;
   if (n < 2) return [];
   const size = nextPow2(n);
@@ -142,11 +149,18 @@ export function buildKnockout(divisionId, teamIds, { thirdPlace = false } = {}) 
     byRound.push(row);
   }
 
-  // Seat round 1.
-  byRound[0].forEach((m, i) => {
-    m.homeTeamId = slots[i * 2];
-    m.awayTeamId = slots[i * 2 + 1];
-  });
+  // Seat round 1 -- or leave it TBA if the draw hasn't happened yet.
+  if (seeded) {
+    byRound[0].forEach((m, i) => {
+      m.homeTeamId = slots[i * 2];
+      m.awayTeamId = slots[i * 2 + 1];
+    });
+  } else {
+    for (const m of byRound[0]) {
+      m.homeSource = { type: 'tba' };
+      m.awaySource = { type: 'tba' };
+    }
+  }
 
   // Wire each match to its parent.
   for (let r = 0; r < rounds - 1; r++) {
@@ -195,6 +209,48 @@ export function buildKnockout(divisionId, teamIds, { thirdPlace = false } = {}) 
   }
   propagate(matches);
   return matches;
+}
+
+/**
+ * Randomly draw `teamIds` into a bracket's round-1 matches -- a live draw
+ * done once the field is actually confirmed, not a fixed seeding computed in
+ * advance. There's no ranking to protect (nothing is actually seeded), so
+ * this is a genuine "names out of a hat" shuffle: pair 1+2 drawn play each
+ * other, pair 3+4 drawn play each other, and so on -- not the standard
+ * seeded bracket order buildKnockout uses when `seeded: true`.
+ *
+ * Mutates the existing round-1 match objects in place (same ids, same
+ * schedule slots already assigned by buildOrderOfPlay) so nothing about the
+ * rest of the bracket or the day's schedule needs to change, just who's in
+ * each slot. Safe to call again for a reshuffle -- the caller is responsible
+ * for confirming nothing in round 1 has actually started first.
+ */
+export function shuffleFirstRound(matches, teamIds) {
+  const round1 = matches.filter((m) => m.deps.length === 0 && m.stage !== STAGE.P3);
+  const size = round1.length * 2;
+  const shuffled = [...teamIds].sort(() => Math.random() - 0.5);
+  while (shuffled.length < size) shuffled.push(null); // bye if the field isn't a power of two
+
+  round1.forEach((m, i) => {
+    m.homeTeamId = shuffled[i * 2] ?? null;
+    m.awayTeamId = shuffled[i * 2 + 1] ?? null;
+    m.homeSource = null;
+    m.awaySource = null;
+    const hasHome = !!m.homeTeamId, hasAway = !!m.awayTeamId;
+    if (hasHome !== hasAway) {
+      m.isBye = true;
+      m.status = 'completed';
+      m.winnerTeamId = m.homeTeamId || m.awayTeamId;
+    } else {
+      m.isBye = false;
+      m.status = 'scheduled';
+      m.winnerTeamId = null;
+      m.score = null;
+    }
+  });
+
+  propagate(matches);
+  return round1;
 }
 
 /**

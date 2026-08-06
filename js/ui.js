@@ -10,10 +10,11 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
 
 const t = () => makeT(store.lang);
 
-/** What to show when a slot isn't decided yet -- "Winner QF1", "#1", "Bye". */
+/** What to show when a slot isn't decided yet -- "Winner QF1", "#1", "TBA", "Bye". */
 function unresolvedLabel(src) {
   const T = t();
   if (!src) return T('bye');
+  if (src.type === 'tba') return T('tba');
   if (src.type === 'winner') return `${T('winnerOf')} ${T.stageShort(srcStage(src.label))}${srcNum(src.label)}`;
   if (src.type === 'loser') return `${T('loserOf')} ${T.stageShort(srcStage(src.label))}${srcNum(src.label)}`;
   return src.label;
@@ -165,7 +166,62 @@ export function renderDivision(divisionId) {
   const div = store.division(divisionId);
   return div.format === 'round_robin'
     ? renderStandings(divisionId) + renderMatchList(divisionId)
-    : renderBracket(divisionId) + renderMatchList(divisionId);
+    : renderShufflePanel(divisionId) + renderBracket(divisionId) + renderMatchList(divisionId);
+}
+
+/**
+ * The live draw for a knockout bracket seeded `{ seeded: false }` (Men's --
+ * real pairings aren't known yet, so round 1 shows TBA until an organizer
+ * runs the draw). Round-robin divisions never call this: everyone plays
+ * everyone regardless of order, so there's nothing to draw.
+ *
+ * Four states: viewer-before-draw (why it says TBA), viewer-after-draw
+ * (nothing to show, the bracket already has the names), admin-before-draw
+ * (the draw button), admin-after-draw (minimized summary + history +
+ * reshuffle, reshuffle hidden once round 1 has actually started).
+ */
+function renderShufflePanel(divisionId) {
+  const T = t();
+  const div = store.division(divisionId);
+  const drawn = store.isDrawn(divisionId);
+  const isAdmin = store.role === 'admin';
+  const history = store.drawHistoryOf(divisionId);
+
+  if (!isAdmin) {
+    if (drawn) return '';
+    return `<section class="card shuffle-card shuffle-pending" style="--c:${div.colour}">
+        <p class="shuffle-status">${T('shuffleNotDrawnViewer')}</p>
+      </section>`;
+  }
+
+  if (!drawn) {
+    return `<section class="card shuffle-card shuffle-pending" style="--c:${div.colour}">
+        <p class="shuffle-status">${T('shuffleNotDrawnAdmin')}</p>
+        <button class="btn shuffle-btn" data-act="shuffle-qf" data-division="${divisionId}">${T('shuffleButton')}</button>
+      </section>`;
+  }
+
+  const canReshuffle = store.round1Of(divisionId).every((m) => m.status === 'scheduled');
+  const historyRows = history.map((h) => `<li>${esc(formatDrawTime(h.at))}</li>`).join('');
+
+  return `<section class="card shuffle-card shuffle-done" style="--c:${div.colour}">
+      <div class="shuffle-summary">
+        <span class="shuffle-check">✓ ${T('shuffleDrawn')}</span>
+        ${canReshuffle
+    ? `<button class="btn ghost shuffle-again" data-act="shuffle-qf" data-division="${divisionId}" data-reshuffle="1">${T('shuffleReshuffle')}</button>`
+    : ''}
+      </div>
+      ${history.length ? `<details class="shuffle-history">
+          <summary>${T('shuffleHistory')}</summary>
+          <ul>${historyRows}</ul>
+        </details>` : ''}
+    </section>`;
+}
+
+function formatDrawTime(iso) {
+  return new Date(iso).toLocaleString(store.lang === 'id' ? 'id-ID' : 'en-GB', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
 }
 
 function renderStandings(divisionId) {

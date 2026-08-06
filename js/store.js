@@ -5,7 +5,7 @@
 // calls, same shapes, so nothing above this file needs to know which is active.
 
 import {
-  propagate, seedRRPlayoffs, standings, reflowDivision, fmt, STAGE, uid,
+  propagate, seedRRPlayoffs, standings, reflowDivision, fmt, STAGE, uid, shuffleFirstRound,
 } from './engine.js';
 import { buildSeed } from './seed-data.js';
 import { FIREBASE } from './config.js';
@@ -37,6 +37,10 @@ const localAdapter = {
     localStorage.removeItem(KEY);
     return this.load();
   },
+  // Local mode has no separate event log store -- the entry already lives in
+  // state.eventLog by the time this is called, and save() persists the whole
+  // state object, so there's nothing extra to do here.
+  async appendEvent() {},
   // PIN checks run client-side here. Fine for local mode, which has nothing
   // shared to protect. The Firebase adapter verifies against a stored hash.
   async verifyPin(state, pin) {
@@ -94,12 +98,13 @@ function firebaseAdapter() {
     // by document ID, and 'div_m' sorts before 'div_w' alphabetically, which
     // silently put Men's before Women's everywhere division order matters
     // (tabs, Info's schedule line) despite Women's playing first.
-    const [tSnap, dSnap, pSnap, tmSnap, mSnap] = await Promise.all([
+    const [tSnap, dSnap, pSnap, tmSnap, mSnap, eSnap] = await Promise.all([
       fns.getDoc(tRef()),
       fns.getDocs(fns.query(sub('divisions'), fns.orderBy('order'))),
       fns.getDocs(sub('players')),
       fns.getDocs(sub('teams')),
       fns.getDocs(fns.query(sub('matches'), fns.orderBy('playOrder'))),
+      fns.getDocs(fns.query(sub('eventLog'), fns.orderBy('at', 'desc'), fns.limit(50))),
     ]);
     const asRows = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     return {
@@ -108,6 +113,7 @@ function firebaseAdapter() {
       players: asRows(pSnap),
       teams: asRows(tmSnap),
       matches: asRows(mSnap),
+      eventLog: asRows(eSnap),
       log: [],
     };
   };
@@ -127,6 +133,11 @@ function firebaseAdapter() {
         batch.set(fns.doc(db, 'tournaments', FIREBASE.tournamentId, 'matches', m.id), {
           homeTeamId: m.homeTeamId ?? null,
           awayTeamId: m.awayTeamId ?? null,
+          // Only a shuffle ever changes these post-seed (clearing 'tba' once a
+          // slot's drawn) -- included here so that survives a reload instead
+          // of reverting to the original seed-time value.
+          homeSource: m.homeSource ?? null,
+          awaySource: m.awaySource ?? null,
           status: m.status,
           score: m.score ?? null,
           winnerTeamId: m.winnerTeamId ?? null,
@@ -137,6 +148,13 @@ function firebaseAdapter() {
       }
       await batch.commit();
       return state;
+    },
+
+    /** One quarterfinal-draw event, appended to the shared, append-only
+     * eventLog collection so every browser sees the same draw history. */
+    async appendEvent(entry) {
+      await ready;
+      await fns.setDoc(fns.doc(db, 'tournaments', FIREBASE.tournamentId, 'eventLog', entry.id), entry);
     },
 
     async reset() {
@@ -443,6 +461,41 @@ export const store = {
     this.logEvent('unskip', m.label);
     this.recompute();
     await this.persist();
+  },
+
+  /**
+   * A genuine live draw for a knockout bracket seeded `{ seeded: false }` --
+   * round 1 shows TBA until an organizer runs this. Refuses once any round-1
+   * match has actually started, since round 1 is exactly what a reshuffle
+   * would rewrite out from under a match already being scored.
+   */
+  round1Of(divisionId) {
+    return this.matchesOf(divisionId).filter((m) => !m.deps.length && m.stage !== STAGE.P3);
+  },
+
+  isDrawn(divisionId) {
+    return this.round1Of(divisionId).every((m) => m.homeSource?.type !== 'tba');
+  },
+
+  /** Draw events for one division, most recent first. */
+  drawHistoryOf(divisionId) {
+    return (this.state.eventLog ?? []).filter((e) => e.divisionId === divisionId);
+  },
+
+  async shuffleQuarterfinals(divisionId) {
+    const round1 = this.round1Of(divisionId);
+    if (round1.some((m) => m.status !== 'scheduled')) return false;
+    const teams = this.teamsOf(divisionId).map((t) => t.id);
+    shuffleFirstRound(this.matchesOf(divisionId), teams);
+    const entry = {
+      id: uid('draw'), divisionId, at: new Date().toISOString(), actor: this.role ?? 'admin',
+    };
+    this.state.eventLog = [entry, ...(this.state.eventLog ?? [])].slice(0, 50);
+    this.logEvent('shuffle', `${round1.length} match${round1.length === 1 ? '' : 'es'} drawn`);
+    this.recompute();
+    await adapter.appendEvent(entry);
+    await this.persist();
+    return true;
   },
 
   async reset() {
