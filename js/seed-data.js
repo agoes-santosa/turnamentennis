@@ -81,7 +81,10 @@ export function buildSeed() {
       name: { en: "Women's Doubles", id: 'Ganda Putri' },
       short: { en: "Women's", id: 'Putri' },
       format: 'round_robin', colour: '#e0568a', status: 'open',
-      thirdPlace: true, finalBetweenTopTwo: true, playoffsOptional: true,
+      // No 3rd-place decider -- no budget for a 3rd place prize (1st gets
+      // trophy + medal, 2nd gets medal only), so there's nothing for that
+      // match to actually decide anymore.
+      thirdPlace: false, finalBetweenTopTwo: true, playoffsOptional: true,
       scoring: SCORING.standard, finalScoring: SCORING.quick,
     },
     {
@@ -89,7 +92,7 @@ export function buildSeed() {
       name: { en: "Men's Doubles", id: 'Ganda Putra' },
       short: { en: "Men's", id: 'Putra' },
       format: 'knockout', colour: '#2f7fe0', status: 'open',
-      thirdPlace: true, finalBetweenTopTwo: false,
+      thirdPlace: false, finalBetweenTopTwo: false,
       scoring: SCORING.standard, finalScoring: SCORING.final,
     },
   ];
@@ -111,8 +114,8 @@ export function buildSeed() {
   const mTeams = teams.filter((t) => t.divisionId === 'div_m');
 
   const wRR = buildRoundRobin('div_w', wTeams.map((t) => t.id));
-  const wPlayoffs = buildRRPlayoffs('div_w', wRR, { thirdPlace: true, final: true, optional: true });
-  const mKO = buildKnockout('div_m', mTeams.map((t) => t.id), { thirdPlace: true });
+  const wPlayoffs = buildRRPlayoffs('div_w', wRR, { thirdPlace: false, final: true, optional: true });
+  const mKO = buildKnockout('div_m', mTeams.map((t) => t.id), { thirdPlace: false });
 
   const matches = [...wRR, ...wPlayoffs, ...mKO];
   const { blocks } = buildOrderOfPlay(

@@ -7,27 +7,27 @@ progress, organizers unlock with a PIN and enter scores on the same page.
 
 | Division | Format | Pairs | Matches | Starts |
 |---|---|---|---|---|
-| Ganda Putri | Round robin + **optional** bronze/final | 4 | 6 required + 2 optional | 07:00 |
-| Ganda Putra | Knockout + bronze | 8 | 8 | 17:00 |
+| Ganda Putri | Round robin + **optional** final | 4 | 6 required + 1 optional | 07:00 |
+| Ganda Putra | Knockout | 8 | 7 | 17:00 |
+
+**No 3rd-place match in either division** — there's no budget for a 3rd
+place prize (1st gets trophy + medal, 2nd gets medal only), so there's
+nothing left for that match to actually decide. Removing it also gave Men's
+back the 30 minutes of schedule slack it had lost when the roster grew to 8
+pairs: the final now ends at **20:30**, not exactly on the 21:00 court
+closing time with zero room for a delay.
 
 Women's plays to completion first (the 6 required group matches finish
-~10:30), then a long gap, then Men's runs 17:00 → **21:00** — landing exactly
-on the court's closing time, with **zero slack**. Men's is now a clean field
-of 8 (no bye) — one more real match than the original 7-pair roster, and that
-extra match used up the 30 minutes of buffer the schedule used to have. Any
-delay, dispute, or a final that runs long pushes past closing time. Worth
-deciding before the event: start Men's earlier than 17:00, or accept the
-risk.
+~10:30), then a long gap, then Men's runs 17:00 → **20:30**.
 
-**Women's bronze and final are optional**, condensed to a quick 9-point
-decider (~10 min) if played at all — matches 7 and 8 would otherwise land
-right in the hottest part of late morning. The round-robin table is a
-legitimate result on its own: an admin can tap **Skip (optional)** on either
-match, and the champion is then read straight off the standings instead
-(shown with a "(from standings)" note wherever it's displayed). See §4.6 of
-the PRD for why the standings are ranked the way they are — it matters more
-now that they might be the actual final result, not just a tiebreak feeding
-into a match.
+**Women's final is optional**, condensed to a quick 9-point decider
+(~10 min) if played at all — it would otherwise land right in the hottest
+part of late morning. The round-robin table is a legitimate result on its
+own: an admin can tap **Skip (optional)**, and the champion is then read
+straight off the standings instead (shown with a "(from standings)" note
+wherever it's displayed). See §4.6 of the PRD for why the standings are
+ranked the way they are — it matters more now that they might be the actual
+final result, not just a tiebreak feeding into a match.
 
 A 4-team round robin has a mathematical quirk worth knowing: it's provably
 impossible to schedule all 6 matches back-to-back on one court without at
@@ -95,7 +95,7 @@ contents of `firestore.rules`, click Publish. (Or use the Firebase CLI —
 ### 3. Seed the event
 
 The seed script writes the tournament, both divisions, all 12 pairs, and all
-16 real matches in one shot, and sets your PINs as hashes (never plaintext).
+14 real matches in one shot, and sets your PINs as hashes (never plaintext).
 
 1. **Project Settings → Service Accounts → Generate new private key.** Save
    the downloaded file as `service-account.json` in this folder. It's already
@@ -184,14 +184,12 @@ something with higher stakes.
 ## Before the event
 
 - [x] Real player names in `js/seed-data.js` — 4 women's pairs, 8 men's pairs
+- [x] Men's final timing — resolved by dropping the 3rd-place match (no
+      budget for a 3rd place prize): the final now ends at 20:30, 30 minutes
+      inside the 21:00 court closing time, instead of landing exactly on it
 - [ ] Confirm the date — 17 Aug 2026 is assumed from "17-an"
 - [ ] Fill in the venue name, address, and Google Maps link (also in
       `seed-data.js`, or added later once an in-app admin editor exists)
-- [ ] **Decide on the men's zero-slack final.** With 8 pairs the men's final
-      now ends at exactly 21:00, the court's closing time — no buffer for a
-      delay, dispute, or a long final. Either start Men's earlier than 17:00,
-      or accept the risk. If a 9th pair ever joins, the field goes back to
-      having a bye (7-of-8 shape) and gets 30 minutes of slack back.
 - [ ] Share the link and QR (the Share button in the header) to the venue wall
 
 ---
@@ -233,8 +231,9 @@ or from Node, which is exactly what `seed.mjs` does with `buildSeed()`.
   tiebreak feeding into a match.
 - **Standings are derived**, never stored, so the table cannot disagree with the
   match results.
-- **The bracket auto-advances.** Scoring a semifinal fills the final and drops
-  the loser into the bronze match. Byes resolve immediately.
+- **The bracket auto-advances.** Scoring a semifinal fills the final; byes
+  resolve immediately. No 3rd-place match — no budget for a 3rd place prize,
+  so both divisions set `thirdPlace: false`.
 - **The women's playoffs seed themselves** once all six group matches are in —
   even if they end up being skipped, so the "would-be" matchup is still shown.
 - **Skipping an optional match** (`store.skipOptional()`) is a real decision
