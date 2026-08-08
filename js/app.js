@@ -209,14 +209,6 @@ const actions = {
     const next = el.nextElementSibling;
     if (next?.classList.contains('st-detail')) next.hidden = !next.hidden;
   },
-
-  async 'shuffle-qf'(el) {
-    const T = makeT(store.lang);
-    if (el.dataset.reshuffle === '1' && !confirm(T('shuffleConfirm'))) return;
-    const ok = await store.shuffleQuarterfinals(el.dataset.division);
-    if (!ok) toast(T('shuffleBlocked'));
-    render();
-  },
 };
 
 /* ------------------------------------------------------------------ */

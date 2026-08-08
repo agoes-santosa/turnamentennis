@@ -18,24 +18,40 @@ const WOMEN = [
 ];
 
 // 8 pairs -- a clean bracket, no bye. Every pair plays a real quarterfinal.
+// Order is seed order (see buildKnockout's seedOrder), chosen below so round 1
+// reproduces the quarterfinal matchups already drawn offline:
+//   QF1 Daniel/Josh v Krisna/Firman   QF2 Irfan/Agoes v Ambo/Nassar
+//   QF3 Lucky/Kiki v Arief/Igor       QF4 Dimas/Lius v Lucas/Zaky
 const MEN = [
-  ['Irfan', 'Agoes'],
   ['Daniel', 'Josh'],
-  ['Lucas', 'Zaky'],
-  ['Dimas', 'Lius'],
-  ['Ambo', 'Nassar'],
-  ['Krisna', 'Firman'],
   ['Lucky', 'Kiki'],
+  ['Dimas', 'Lius'],
+  ['Irfan', 'Agoes'],
+  ['Ambo', 'Nassar'],
+  ['Lucas', 'Zaky'],
   ['Arief', 'Igor'],
+  ['Krisna', 'Firman'],
 ];
 
 export const SCORING = {
-  standard: { setsToWin: 1, gamesPerSet: 6, tiebreak: true, noAd: true, label: '1 set ke 6 · no-ad' },
-  final: { setsToWin: 1, gamesPerSet: 6, tiebreak: true, noAd: false, superTiebreak: true, label: '1 set ke 6 + super TB' },
-  // A fast, low-heat-exposure decider — raw points, no games or sets, over in
-  // about 10 minutes. Used for Women's bronze/final, which are optional and
-  // only worth playing if it's short enough to be worth the extra sun.
-  quick: { pointTarget: 9, splitPoints: true, label: '1 gim cepat · sampai 9 poin' },
+  womens: {
+    setsToWin: 1,
+    gamesPerSet: 6,
+    noAd: true,
+    label: {
+      en: 'Best of one, first to six, no-ad — receiver chooses who returns at game point',
+      id: 'Best of one, first to six, no-ad — saat game point, penerima pilih siapa yang menerima servis',
+    },
+  },
+  mens: {
+    setsToWin: 2,
+    gamesPerSet: 4,
+    noAd: true,
+    label: {
+      en: 'Best of three, first to four, no-ad — receiver chooses who returns at game point',
+      id: 'Best of three, first to four, no-ad — saat game point, penerima pilih siapa yang menerima servis',
+    },
+  },
 };
 
 // The Firestore document ID for the tournament. Fixed and human-readable
@@ -85,7 +101,7 @@ export function buildSeed() {
       // trophy + medal, 2nd gets medal only), so there's nothing for that
       // match to actually decide anymore.
       thirdPlace: false, finalBetweenTopTwo: true, playoffsOptional: true,
-      scoring: SCORING.standard, finalScoring: SCORING.quick,
+      scoring: SCORING.womens,
     },
     {
       id: 'div_m', tournamentId: tournament.id, order: 2, key: 'mens',
@@ -93,10 +109,10 @@ export function buildSeed() {
       short: { en: "Men's", id: 'Putra' },
       format: 'knockout', colour: '#2f7fe0', status: 'open',
       thirdPlace: false, finalBetweenTopTwo: false,
-      // Real-life matchups aren't decided yet -- the bracket seeds as TBA and
-      // an organizer runs the live draw from the app (see store.js's
-      // shuffleQuarterfinals, which logs each draw/redraw to eventLog).
-      scoring: SCORING.standard, finalScoring: SCORING.final,
+      // Quarterfinal matchups were drawn offline before the event -- the
+      // bracket seeds straight from the MEN array's seed order below
+      // (buildKnockout's `seeded: true`), not from a live in-app draw.
+      scoring: SCORING.mens,
     },
   ];
 
@@ -118,7 +134,7 @@ export function buildSeed() {
 
   const wRR = buildRoundRobin('div_w', wTeams.map((t) => t.id));
   const wPlayoffs = buildRRPlayoffs('div_w', wRR, { thirdPlace: false, final: true, optional: true });
-  const mKO = buildKnockout('div_m', mTeams.map((t) => t.id), { thirdPlace: false, seeded: false });
+  const mKO = buildKnockout('div_m', mTeams.map((t) => t.id), { thirdPlace: false, seeded: true });
 
   const matches = [...wRR, ...wPlayoffs, ...mKO];
   const { blocks } = buildOrderOfPlay(
