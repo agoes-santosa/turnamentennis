@@ -110,9 +110,8 @@ function roundStages(rounds) {
  * `seeded: false` builds the full bracket structure -- every round, every
  * dependency link -- but leaves round 1 genuinely undetermined (`TBA` on
  * both sides) instead of seating teamIds immediately. Use this when the
- * actual matchups haven't been decided yet and will be drawn live later via
- * shuffleFirstRound(); the schedule (which stage plays when) doesn't depend
- * on who's in it, so there's nothing else to defer.
+ * actual matchups haven't been decided yet; the schedule (which stage plays
+ * when) doesn't depend on who's in it, so there's nothing else to defer.
  */
 export function buildKnockout(divisionId, teamIds, { thirdPlace = false, seeded = true } = {}) {
   const n = teamIds.length;
@@ -209,48 +208,6 @@ export function buildKnockout(divisionId, teamIds, { thirdPlace = false, seeded 
   }
   propagate(matches);
   return matches;
-}
-
-/**
- * Randomly draw `teamIds` into a bracket's round-1 matches -- a live draw
- * done once the field is actually confirmed, not a fixed seeding computed in
- * advance. There's no ranking to protect (nothing is actually seeded), so
- * this is a genuine "names out of a hat" shuffle: pair 1+2 drawn play each
- * other, pair 3+4 drawn play each other, and so on -- not the standard
- * seeded bracket order buildKnockout uses when `seeded: true`.
- *
- * Mutates the existing round-1 match objects in place (same ids, same
- * schedule slots already assigned by buildOrderOfPlay) so nothing about the
- * rest of the bracket or the day's schedule needs to change, just who's in
- * each slot. Safe to call again for a reshuffle -- the caller is responsible
- * for confirming nothing in round 1 has actually started first.
- */
-export function shuffleFirstRound(matches, teamIds) {
-  const round1 = matches.filter((m) => m.deps.length === 0 && m.stage !== STAGE.P3);
-  const size = round1.length * 2;
-  const shuffled = [...teamIds].sort(() => Math.random() - 0.5);
-  while (shuffled.length < size) shuffled.push(null); // bye if the field isn't a power of two
-
-  round1.forEach((m, i) => {
-    m.homeTeamId = shuffled[i * 2] ?? null;
-    m.awayTeamId = shuffled[i * 2 + 1] ?? null;
-    m.homeSource = null;
-    m.awaySource = null;
-    const hasHome = !!m.homeTeamId, hasAway = !!m.awayTeamId;
-    if (hasHome !== hasAway) {
-      m.isBye = true;
-      m.status = 'completed';
-      m.winnerTeamId = m.homeTeamId || m.awayTeamId;
-    } else {
-      m.isBye = false;
-      m.status = 'scheduled';
-      m.winnerTeamId = null;
-      m.score = null;
-    }
-  });
-
-  propagate(matches);
-  return round1;
 }
 
 /**

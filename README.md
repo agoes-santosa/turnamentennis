@@ -300,24 +300,12 @@ or from Node, which is exactly what `seed.mjs` does with `buildSeed()`.
   file. This app has no build step and no hashed filenames, so without it a
   returning visitor's browser could keep running yesterday's JS after a
   deploy until they happened to hard-refresh.
-- **Men's quarterfinal matchups are drawn live, not seeded in advance** — in
-  reality the pairings aren't decided until the day. `buildKnockout(..., {
-  seeded: false })` seats round 1 as `TBA` instead of real teams; an admin
-  runs the draw from a panel above the bracket (`Acak Perempat Final` /
-  "Shuffle Quarterfinal Match"), which calls `engine.js`'s
-  `shuffleFirstRound()` — a genuine random draw (pair 1+2 drawn play each
-  other, and so on), distinct from `seedOrder()`'s standard bracket seeding
-  since there's no ranking to protect here. The panel collapses to a
-  minimized "✓ Sudah diundi" summary with a draw-history list
-  (`store.state.eventLog`, one entry per draw/redraw, persisted to
-  Firestore's `eventLog` subcollection — see `firestore.rules`) and a
-  **reshuffle** button behind a confirmation prompt. Reshuffling is refused
-  outright, not just warned against, once any round-1 match has actually
-  started (`store.shuffleQuarterfinals()` checks match status before
-  touching anything) — a live draw redoing the pairings mid-match would
-  corrupt whichever match is already being scored. Women's never gets this
-  panel: it's round robin, so every pair meets every other pair regardless of
-  bracket position, and there's nothing to draw.
+- **Men's quarterfinal matchups are fixed, drawn offline before the event** —
+  the `MEN` array in `seed-data.js` is ordered as bracket seed order, chosen
+  so `buildKnockout(..., { seeded: true })`'s standard seeding
+  (`seedOrder()`) reproduces the already-drawn QF matchups on round 1. There
+  is no in-app shuffle/draw feature; changing the matchups means reordering
+  `MEN` and re-running the seed.
 
 ---
 
@@ -327,8 +315,7 @@ Built: live "Now On Court" hero, per-division standings and bracket (each
 tab is its own complete schedule for that division — no separate combined
 order-of-play view, removed as redundant once divisions stopped
 interleaving), quick and live scoring, optional/skippable matches, PIN
-unlock via Firebase, bilingual UI, out-of-order play with schedule reflow,
-live quarterfinal draw for Men's with draw history and guarded reshuffle.
+unlock via Firebase, bilingual UI, out-of-order play with schedule reflow.
 
 Next: admin screens for editing players and pairs in-app (right now that means
 editing `seed-data.js` and re-running the seed script), drag-to-reorder the
