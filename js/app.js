@@ -52,7 +52,7 @@ function render() {
   app.innerHTML = renderHeader() + renderNowOnCourt() + tabs() + `<main class="main">${body()}</main>`;
 
   layer.innerHTML = ui.sheet
-    ? (ui.sheet.type === 'pin' ? renderPin(ui.pinError) : renderSheet(ui.sheet.id, ui.sheet.mode))
+    ? (ui.sheet.type === 'pin' ? renderPin(ui.pinError) : renderSheet(ui.sheet.id, ui.sheet.mode, ui.sheet.points))
     : '';
   layer.hidden = !ui.sheet;
 
@@ -124,7 +124,11 @@ const actions = {
     render();
   },
 
-  mode(el) { ui.sheet = { ...ui.sheet, mode: el.dataset.mode }; render(); },
+  mode(el) {
+    ui.sheet = { ...ui.sheet, mode: el.dataset.mode };
+    if (el.dataset.mode === 'live' && !ui.sheet.points) ui.sheet.points = { home: 0, away: 0 };
+    render();
+  },
 
   async start() {
     const already = store.liveMatch();
@@ -135,7 +139,7 @@ const actions = {
       if (!confirm(msg)) return;
     }
     await store.startMatch(ui.sheet.id);
-    ui.sheet = { ...ui.sheet, mode: 'live' };
+    ui.sheet = { ...ui.sheet, mode: 'live', points: { home: 0, away: 0 } };
     render();
   },
 
@@ -154,6 +158,34 @@ const actions = {
     const next = { home: Number(s.home) || 0, away: Number(s.away) || 0 };
     next[el.dataset.side]++;
     await store.setScore(ui.sheet.id, [next], { complete: false });
+    ui.sheet = { ...ui.sheet, points: { home: 0, away: 0 } };
+    render();
+  },
+
+  /**
+   * Point-by-point reminder for the current game (no-ad, so 0-15-30-40 with
+   * no advantage stage) -- purely a courtside display, not persisted, since
+   * only games (the `pt` action above) count toward the recorded set score.
+   * Pressing +15 for a side already at 40 means they've just won the next
+   * point, which under no-ad wins the game outright regardless of the other
+   * side's point tally -- so it advances the real game score instead and
+   * resets both sides back to 0.
+   */
+  async pt15(el) {
+    const side = el.dataset.side;
+    const points = ui.sheet.points ?? { home: 0, away: 0 };
+    if (points[side] === 40) {
+      const m = store.state.matches.find((x) => x.id === ui.sheet.id);
+      const s = m.score?.sets?.[0] ?? { home: 0, away: 0 };
+      const next = { home: Number(s.home) || 0, away: Number(s.away) || 0 };
+      next[side]++;
+      await store.setScore(ui.sheet.id, [next], { complete: false });
+      ui.sheet = { ...ui.sheet, points: { home: 0, away: 0 } };
+    } else {
+      const steps = [0, 15, 30, 40];
+      const nextVal = steps[steps.indexOf(points[side]) + 1];
+      ui.sheet = { ...ui.sheet, points: { ...points, [side]: nextVal } };
+    }
     render();
   },
 

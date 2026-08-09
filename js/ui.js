@@ -362,7 +362,7 @@ export function renderInfo() {
  * Score sheet
  * ------------------------------------------------------------------ */
 
-export function renderSheet(matchId, mode = 'quick') {
+export function renderSheet(matchId, mode = 'quick', points) {
   const T = t();
   const m = store.state.matches.find((x) => x.id === matchId);
   if (!m) return '';
@@ -410,10 +410,17 @@ export function renderSheet(matchId, mode = 'quick') {
                <div class="live-name">${sideName(m, 'home')}</div>
                <div class="live-name live-name-away">${sideName(m, 'away')}</div>
              </div>
+             <div class="live-label">${T('games')}</div>
              <div class="live-pad">
                <button class="pt" data-act="pt" data-side="home">+1</button>
                <div class="pt-score"><b>${hs}</b><span>–</span><b>${as}</b></div>
                <button class="pt" data-act="pt" data-side="away">+1</button>
+             </div>
+             <div class="live-label">${T('gamePoints')}</div>
+             <div class="live-pad live-pad-points">
+               <button class="pt pt-15" data-act="pt15" data-side="home">+15</button>
+               <div class="pt-score pt-score-points"><b>${points?.home ?? 0}</b><span>–</span><b>${points?.away ?? 0}</b></div>
+               <button class="pt pt-15" data-act="pt15" data-side="away">+15</button>
              </div>
              <div class="sheet-actions">
                <button class="btn ghost" data-act="undo">${T('undo')}</button>
