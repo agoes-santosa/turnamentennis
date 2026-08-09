@@ -296,6 +296,18 @@ function renderMatchList(divisionId) {
  * Info
  * ------------------------------------------------------------------ */
 
+/**
+ * `scoring.label` is a `{ en, id }` object in current seed data, but a
+ * division's Firestore doc keeps whatever shape it was last seeded with --
+ * code deploys instantly, Firestore data only catches up when someone
+ * re-runs seed.mjs. Accepting either shape here means an out-of-date doc
+ * still shows its (stale but real) text instead of silently going blank.
+ */
+function scoringLabel(label) {
+  if (typeof label === 'string') return label;
+  return label?.[store.lang] ?? label?.en ?? '';
+}
+
 export function renderInfo() {
   const T = t();
   const tn = store.state.tournament;
@@ -309,7 +321,7 @@ export function renderInfo() {
     ? (id ? `Babak grup ${teams.length} pasangan` : `Round robin, ${teams.length} pairs`)
     : (id ? `Sistem gugur ${teams.length} pasangan` : `Knockout, ${teams.length} pairs`)}
           ${d.thirdPlace ? ` · ${T('thirdPlace')}` : ''}${d.finalBetweenTopTwo ? ` · ${T('final')}` : ''}</p>
-        <p class="muted">${T('format')}: ${esc(d.scoring.label[store.lang] ?? d.scoring.label.en)}</p>
+        <p class="muted">${T('format')}: ${esc(scoringLabel(d.scoring.label))}</p>
         <ol class="info-teams">
           ${teams.map((tm) => `<li>${esc(store.teamName(tm))}</li>`).join('')}
         </ol>
