@@ -5,7 +5,7 @@
 // calls, same shapes, so nothing above this file needs to know which is active.
 
 import {
-  propagate, seedRRPlayoffs, standings, reflowDivision, fmt, STAGE, uid,
+  propagate, seedRRPlayoffs, standings, reflowDivision, fmt, STAGE, uid, setsWon,
 } from './engine.js';
 import { buildSeed } from './seed-data.js';
 import { FIREBASE } from './config.js';
@@ -409,8 +409,9 @@ export const store = {
     const before = m.score ? summarise(m.score) : '—';
     m.score = { sets };
     if (complete) {
-      const h = sets.reduce((n, s) => n + (Number(s.home) || 0), 0);
-      const a = sets.reduce((n, s) => n + (Number(s.away) || 0), 0);
+      // Sets won, not total games -- a side can out-score its opponent on
+      // raw games across a best-of-three and still lose it 2 sets to 1.
+      const [h, a] = setsWon(m.score);
       if (h !== a) {
         m.status = 'completed';
         m.winnerTeamId = h > a ? m.homeTeamId : m.awayTeamId;

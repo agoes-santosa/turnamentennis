@@ -2,6 +2,7 @@
 
 import { store, exportSeedJson } from './store.js';
 import { makeT } from './i18n.js';
+import { setsWon } from './engine.js';
 import {
   renderHeader, renderNowOnCourt, renderDivision,
   renderInfo, renderSheet, renderPin,
@@ -70,6 +71,14 @@ function render() {
 }
 
 const toast = (msg) => { ui.toast = msg; render(); };
+
+/** Split a match's recorded sets into the finished ones and the set still
+ * being played (or about to start) -- the +1/+15/undo buttons only ever
+ * touch that last one, leaving earlier finished sets untouched. */
+function currentAndFinished(m) {
+  const existing = m.score?.sets ?? [{ home: 0, away: 0 }];
+  return { finished: existing.slice(0, -1), current: existing[existing.length - 1] ?? { home: 0, away: 0 } };
+}
 
 /* ------------------------------------------------------------------ *
  * Actions
@@ -144,20 +153,34 @@ const actions = {
   },
 
   async save() {
-    const h = Number(document.getElementById('sc-home')?.value) || 0;
-    const a = Number(document.getElementById('sc-away')?.value) || 0;
-    if (h === a) return toast(makeT(store.lang).lang === 'id' ? 'Skor tidak boleh seri' : 'Score cannot be a draw');
-    await store.setScore(ui.sheet.id, [{ home: h, away: a }]);
+    const m = store.state.matches.find((x) => x.id === ui.sheet.id);
+    const setsToWin = store.division(m.divisionId).scoring?.setsToWin ?? 1;
+    const maxSets = setsToWin * 2 - 1;
+    const sets = [];
+    for (let i = 0; i < maxSets; i++) {
+      const hEl = document.getElementById(`sc-home-${i}`);
+      const aEl = document.getElementById(`sc-away-${i}`);
+      if (!hEl || !aEl) break;
+      const hv = hEl.value.trim();
+      const av = aEl.value.trim();
+      if (hv === '' && av === '') break; // trailing set row never touched -- not played
+      const hn = Number(hv) || 0, an = Number(av) || 0;
+      if (hn === an) return toast(store.lang === 'id' ? 'Skor tidak boleh seri' : 'Score cannot be a draw');
+      sets.push({ home: hn, away: an });
+    }
+    if (!sets.length) return;
+    const [h, a] = setsWon({ sets });
+    await store.setScore(ui.sheet.id, sets, { complete: h >= setsToWin || a >= setsToWin });
     ui.sheet = null;
     render();
   },
 
   async pt(el) {
     const m = store.state.matches.find((x) => x.id === ui.sheet.id);
-    const s = m.score?.sets?.[0] ?? { home: 0, away: 0 };
-    const next = { home: Number(s.home) || 0, away: Number(s.away) || 0 };
+    const { finished, current } = currentAndFinished(m);
+    const next = { home: Number(current.home) || 0, away: Number(current.away) || 0 };
     next[el.dataset.side]++;
-    await store.setScore(ui.sheet.id, [next], { complete: false });
+    await store.setScore(ui.sheet.id, [...finished, next], { complete: false });
     ui.sheet = { ...ui.sheet, points: { home: 0, away: 0 } };
     render();
   },
@@ -176,10 +199,10 @@ const actions = {
     const points = ui.sheet.points ?? { home: 0, away: 0 };
     if (points[side] === 40) {
       const m = store.state.matches.find((x) => x.id === ui.sheet.id);
-      const s = m.score?.sets?.[0] ?? { home: 0, away: 0 };
-      const next = { home: Number(s.home) || 0, away: Number(s.away) || 0 };
+      const { finished, current } = currentAndFinished(m);
+      const next = { home: Number(current.home) || 0, away: Number(current.away) || 0 };
       next[side]++;
-      await store.setScore(ui.sheet.id, [next], { complete: false });
+      await store.setScore(ui.sheet.id, [...finished, next], { complete: false });
       ui.sheet = { ...ui.sheet, points: { home: 0, away: 0 } };
     } else {
       const steps = [0, 15, 30, 40];
@@ -191,25 +214,45 @@ const actions = {
 
   async undo() {
     const m = store.state.matches.find((x) => x.id === ui.sheet.id);
-    const s = m.score?.sets?.[0] ?? { home: 0, away: 0 };
-    const next = { home: Math.max(0, (Number(s.home) || 0)), away: Math.max(0, (Number(s.away) || 0)) };
+    const { finished, current } = currentAndFinished(m);
+    const next = { home: Math.max(0, Number(current.home) || 0), away: Math.max(0, Number(current.away) || 0) };
     // Step back whichever side moved last is unknowable, so step the larger one.
     if (next.home >= next.away && next.home > 0) next.home--;
     else if (next.away > 0) next.away--;
-    await store.setScore(ui.sheet.id, [next], { complete: false });
+    await store.setScore(ui.sheet.id, [...finished, next], { complete: false });
     render();
   },
 
+  /**
+   * Ends the current set. If that's enough sets for either side to reach
+   * the division's setsToWin (e.g. 2 of 3), the match itself is over --
+   * same confirm-then-close flow as before. Otherwise the match continues:
+   * the just-finished set is locked in and a fresh empty set starts, with
+   * the game and point trackers both reset to 0.
+   */
   async finish() {
     const T = makeT(store.lang);
     const m = store.state.matches.find((x) => x.id === ui.sheet.id);
-    const s = m.score?.sets?.[0] ?? { home: 0, away: 0 };
-    if (s.home === s.away) return toast(store.lang === 'id' ? 'Skor tidak boleh seri' : 'Score cannot be a draw');
-    const winner = s.home > s.away ? m.homeTeamId : m.awayTeamId;
-    const name = store.team(winner)?.name ?? '';
-    if (!confirm(`${T('endMatch')}\n\n${T('winnerIs')}: ${name}\n${s.home}–${s.away}`)) return;
-    await store.setScore(ui.sheet.id, [s]);
-    ui.sheet = null;
+    const setsToWin = store.division(m.divisionId).scoring?.setsToWin ?? 1;
+    const { finished, current } = currentAndFinished(m);
+    if (current.home === current.away) return toast(store.lang === 'id' ? 'Skor tidak boleh seri' : 'Score cannot be a draw');
+    const sets = [...finished, current];
+    const [h, a] = setsWon({ sets });
+    if (h >= setsToWin || a >= setsToWin) {
+      const winner = h > a ? m.homeTeamId : m.awayTeamId;
+      const name = store.team(winner)?.name ?? '';
+      const scoreLine = sets.map((s) => `${s.home}–${s.away}`).join(' ');
+      if (!confirm(`${T('endMatch')}\n\n${T('winnerIs')}: ${name}\n${scoreLine}`)) return;
+      await store.setScore(ui.sheet.id, sets);
+      ui.sheet = null;
+    } else {
+      const msg = store.lang === 'id'
+        ? `Set selesai (${current.home}–${current.away}). Lanjut ke set berikutnya?`
+        : `Set finished (${current.home}–${current.away}). Move to the next set?`;
+      if (!confirm(msg)) return;
+      await store.setScore(ui.sheet.id, [...sets, { home: 0, away: 0 }], { complete: false });
+      ui.sheet = { ...ui.sheet, points: { home: 0, away: 0 } };
+    }
     render();
   },
 

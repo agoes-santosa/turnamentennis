@@ -319,9 +319,28 @@ function tally(score) {
   return [h, a];
 }
 
+/**
+ * Sets won by each side -- the actual decider for a best-of-N match. A set
+ * still tied on games (still being played, or never played) counts toward
+ * neither side. Distinct from `tally()`'s total-games-across-all-sets sum,
+ * which is meaningless for who won a multi-set match (a side can win more
+ * total games while still losing 2 sets to 1) but stays the right measure
+ * for round-robin standings' game differential, where every division so far
+ * plays a single set anyway.
+ */
+export function setsWon(score) {
+  let h = 0, a = 0;
+  for (const s of score?.sets ?? []) {
+    const sh = Number(s.home) || 0, sa = Number(s.away) || 0;
+    if (sh === sa) continue;
+    if (sh > sa) h++; else a++;
+  }
+  return [h, a];
+}
+
 export function matchWinner(match) {
-  if (!match.score) return null;
-  const [h, a] = tally(match.score);
+  if (!match.score?.sets?.length) return null;
+  const [h, a] = setsWon(match.score);
   if (h === a) return null;
   return h > a ? match.homeTeamId : match.awayTeamId;
 }
