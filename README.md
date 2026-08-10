@@ -133,8 +133,22 @@ grant access on its own.
 
 ### 5. Deploy
 
-Deploy the folder to Netlify (drag-and-drop, or connect the repo). No build
-command, publish directory `.`.
+Deploy the folder to Netlify (drag-and-drop, or connect the repo) or GitHub
+Pages (this event currently runs on Pages). No build command, publish
+directory `.`.
+
+**On GitHub Pages specifically**, there's no build step to fingerprint
+filenames and no Netlify `_headers` file support (GitHub Pages ignores it —
+that file only does anything on Netlify), so a returning visitor's browser
+can keep running yesterday's JS/CSS after a deploy until it happens to
+revalidate. Every internal `<link>`/`<script>` tag and JS module import
+carries a shared `?v=N` cache-busting query string to force a fresh fetch
+instead. **Run `node bump-cache-version.mjs` as the last step before
+committing any change to `index.html` or a `js/*.js` file** — it bumps `?v=N`
+to `N+1` everywhere it appears, in one shot, across every tracked file. All
+files must move to the same new number together; a mismatched version on
+just one file's import would make the browser load two separate instances of
+that module (each with its own top-level state) instead of sharing one.
 
 ---
 
@@ -208,6 +222,7 @@ js/app.js          bootstrap, tabs, event delegation
 js/i18n.js         Bahasa + English
 firestore.rules    Firestore security rules — public read, session-gated write
 seed.mjs           Node script (Admin SDK) that writes the event into Firestore
+bump-cache-version.mjs  bumps the ?v=N cache-busting query string (see "5. Deploy")
 package.json       only for seed.mjs's one dependency, firebase-admin
 ```
 
@@ -297,9 +312,13 @@ or from Node, which is exactly what `seed.mjs` does with `buildSeed()`.
   that's mathematically unavoidable (see the 4-team round robin note above),
   in which case a short rest gap is inserted instead of a silent clash.
 - **`_headers`** tells Netlify to send `Cache-Control: no-cache` on every
-  file. This app has no build step and no hashed filenames, so without it a
-  returning visitor's browser could keep running yesterday's JS after a
-  deploy until they happened to hard-refresh.
+  file, and **`?v=N` on every internal `<link>`/`<script>`/module import**
+  forces a fresh fetch on GitHub Pages, which has no equivalent header
+  support. Either way: this app has no build step and no hashed filenames, so
+  without one of these a returning visitor's browser could keep running
+  yesterday's JS after a deploy indefinitely, not just until a hard refresh.
+  See "5. Deploy" above for the GitHub Pages cache-busting workflow
+  (`bump-cache-version.mjs`).
 - **Men's quarterfinal matchups are fixed, drawn offline before the event** —
   the `MEN` array in `seed-data.js` is ordered as bracket seed order, chosen
   so `buildKnockout(..., { seeded: true })`'s standard seeding
