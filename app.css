@@ -261,6 +261,10 @@ table { border-collapse: collapse; width: 100%; }
 .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink-2); flex: 0 1 auto; padding: 0 16px; }
 .btn.ghost.skip { border-color: var(--live); color: var(--live); }
 .btn.ghost.reset { border-color: #e0a530; color: #e0a530; }
+/* The full-match wipe, demoted to secondary once "Reset this set" is doing
+   the common job -- deliberately plainer so it doesn't compete for
+   attention with the button referees actually want most of the time. */
+.btn.ghost.reset-secondary { border-color: var(--line); color: var(--ink-3); font-size: 13px; }
 .btn.ghost.start { border-color: var(--accent); color: var(--accent); }
 
 .quick-set { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 10px 0; }
@@ -317,7 +321,10 @@ table { border-collapse: collapse; width: 100%; }
   min-height: 44px; font-size: 14px; font-weight: 700;
   background: transparent; border-style: dashed;
 }
-.pt-score-points { font-size: 22px; gap: 6px; }
+.pt-score-points {
+  font-size: 22px; gap: 6px; cursor: pointer; padding: 4px 10px; border-radius: 10px;
+}
+.pt-score-points:active { background: var(--bg-3); }
 
 .pin-input {
   width: 100%; min-height: 56px; margin-top: 14px; text-align: center;

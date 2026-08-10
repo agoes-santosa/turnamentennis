@@ -259,10 +259,35 @@ const actions = {
   async reopen() {
     const T = makeT(store.lang);
     const m = store.state.matches.find((x) => x.id === ui.sheet.id);
-    const label = m?.status === 'completed' ? T('reopen') : T('resetMatch');
-    if (!confirm(`${label}?`)) return;
+    // Reopening a completed match keeps every set it already played (see
+    // store.reopen), so there's nothing to lose and nothing to warn about.
+    // An in_progress match's full wipe genuinely does discard any already-
+    // finished sets, so that warning only needs teeth once there's
+    // something real to lose.
+    const finishedCount = m?.status === 'in_progress' ? Math.max(0, (m.score?.sets?.length ?? 0) - 1) : 0;
+    const msg = m?.status === 'completed'
+      ? `${T('reopen')}?`
+      : finishedCount > 0
+        ? (store.lang === 'id'
+          ? `Ini akan menghapus semua ${finishedCount} set yang sudah selesai dan mengembalikan pertandingan ke belum mulai. Lanjutkan?`
+          : `This will erase all ${finishedCount} set(s) already finished and return the match to not-started. Continue?`)
+        : `${T('resetMatch')}?`;
+    if (!confirm(msg)) return;
     await store.reopen(ui.sheet.id);
     ui.sheet = null;
+    render();
+  },
+
+  async 'reset-set'() {
+    const T = makeT(store.lang);
+    if (!confirm(`${T('resetSet')}?`)) return;
+    await store.resetCurrentSet(ui.sheet.id);
+    ui.sheet = { ...ui.sheet, points: { home: 0, away: 0 } };
+    render();
+  },
+
+  'reset-points'() {
+    ui.sheet = { ...ui.sheet, points: { home: 0, away: 0 } };
     render();
   },
 
