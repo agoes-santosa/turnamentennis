@@ -258,9 +258,16 @@ table { border-collapse: collapse; width: 100%; }
   flex: 1; min-height: var(--tap); border: none; border-radius: 12px;
   background: var(--accent); color: #06210f; font-weight: 700; font-size: 15px;
 }
-.btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink-2); flex: 0 1 auto; padding: 0 16px; }
+.btn.ghost {
+  background: transparent; border: 1px solid var(--line); color: var(--ink-2);
+  flex: 0 1 auto; padding: 8px 16px; line-height: 1.25;
+}
 .btn.ghost.skip { border-color: var(--live); color: var(--live); }
-.btn.ghost.reset { border-color: #e0a530; color: #e0a530; }
+/* Smaller than the default 15px -- at full size "Ulang set ini" / "Reset
+   this set" wraps to two lines and, without the extra vertical padding
+   above, sat close enough to the button's top/bottom corners to look
+   cramped. */
+.btn.ghost.reset { border-color: #e0a530; color: #e0a530; font-size: 13px; }
 /* The full-match wipe, demoted to secondary once "Reset this set" is doing
    the common job -- deliberately plainer so it doesn't compete for
    attention with the button referees actually want most of the time. */
