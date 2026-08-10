@@ -3,7 +3,7 @@
 
 import { store, summarise } from './store.js';
 import { makeT } from './i18n.js';
-import { STAGE, stageRank } from './engine.js';
+import { STAGE, stageRank, setsWon } from './engine.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -135,16 +135,21 @@ export function renderNowOnCourt() {
 
   const div = store.division(m.divisionId);
   const isLive = m.status === 'in_progress';
+  // The current (last) set's games, not a sum across every set -- for a
+  // best-of-three, summing finished sets in with the live one produces a
+  // number that isn't "the score right now" for either measure.
   const sets = m.score?.sets ?? [];
-  const hs = sets.reduce((n, s) => n + (Number(s.home) || 0), 0);
-  const as = sets.reduce((n, s) => n + (Number(s.away) || 0), 0);
+  const current = sets[sets.length - 1] ?? { home: 0, away: 0 };
+  const hs = Number(current.home) || 0;
+  const as = Number(current.away) || 0;
+  const [setsH, setsA] = setsWon(m.score);
   const upNext = isLive && next ? next : null;
 
   return `
     <section class="now ${isLive ? 'is-live' : ''}" style="--c:${div.colour}">
       <div class="now-label">
         ${isLive ? `<span class="pulse"></span>${T('live')}` : `${T('next')} · ${esc(m.startTime ?? '')}`}
-        <span class="now-div">${esc(div.short[store.lang] ?? div.short.en)} · ${t().stage(m.stage)}</span>
+        <span class="now-div">${esc(div.short[store.lang] ?? div.short.en)} · ${t().stage(m.stage)}${sets.length > 1 ? ` · ${T('sets')} ${setsH}–${setsA}` : ''}</span>
       </div>
       <div class="now-teams">
         <div class="now-team now-team-home">${sideName(m, 'home')}</div>
@@ -248,10 +253,23 @@ function renderBracket(divisionId) {
 }
 
 function bracketCard(m) {
+  const div = store.division(m.divisionId);
+  const setsToWin = div?.scoring?.setsToWin ?? 1;
   const sets = m.score?.sets ?? [];
-  const hs = sets.reduce((n, s) => n + (Number(s.home) || 0), 0);
-  const as = sets.reduce((n, s) => n + (Number(s.away) || 0), 0);
   const has = m.status !== 'scheduled' && sets.length;
+  // Best-of-one: the raw game score IS the set, so show it directly (e.g.
+  // "6-4"). Best-of-N: total games across sets don't say who's ahead in the
+  // match (a side can out-score its opponent on games while losing 2 sets to
+  // 1), so show sets won instead (e.g. "2-1"), with the set-by-set detail
+  // available on the match list / score sheet.
+  let hs, as;
+  if (setsToWin > 1) {
+    [hs, as] = setsWon(m.score);
+  } else {
+    const s0 = sets[0] ?? { home: 0, away: 0 };
+    hs = Number(s0.home) || 0;
+    as = Number(s0.away) || 0;
+  }
   return `<div class="bk-match ${statusClass(m)}" data-act="open-match" data-id="${m.id}" tabindex="0" role="button">
       <div class="bk-side ${m.winnerTeamId === m.homeTeamId ? 'won' : ''}">
         <span>${sideName(m, 'home')}</span><b>${has ? hs : ''}</b>
@@ -369,15 +387,16 @@ export function renderSheet(matchId, mode = 'quick', points) {
   const div = store.division(m.divisionId);
   const canScore = store.can('score');
   const bothKnown = m.homeTeamId && m.awayTeamId;
-  const sets = m.score?.sets ?? [{ home: 0, away: 0 }];
-  const hs = Number(sets[0]?.home) || 0;
-  const as = Number(sets[0]?.away) || 0;
-  // Quick-entry fields start blank rather than pre-filled "0" -- typing into a
-  // field that already contains "0" can land the new digit on either side of
-  // it depending on where the cursor happens to be, turning a tapped "1" into
-  // "10" instead of "1". Only pre-fill when there's a real score to edit.
-  const hsInput = m.score ? hs : '';
-  const asInput = m.score ? as : '';
+  // A match is best-of-`setsToWin * 2 - 1` sets (1 for Women's, 3 for Men's).
+  // `existingSets` are what's actually been recorded; the last one is the
+  // set currently being played (or about to be), the rest are finished.
+  const setsToWin = div.scoring?.setsToWin ?? 1;
+  const maxSets = setsToWin * 2 - 1;
+  const existingSets = m.score?.sets ?? [];
+  const finishedSets = existingSets.slice(0, -1);
+  const currentSet = existingSets[existingSets.length - 1] ?? { home: 0, away: 0 };
+  const hs = Number(currentSet.home) || 0;
+  const as = Number(currentSet.away) || 0;
 
   const skipRow = m.optional && store.role === 'admin'
     ? m.status === 'skipped'
@@ -410,7 +429,8 @@ export function renderSheet(matchId, mode = 'quick', points) {
                <div class="live-name">${sideName(m, 'home')}</div>
                <div class="live-name live-name-away">${sideName(m, 'away')}</div>
              </div>
-             <div class="live-label">${T('games')}</div>
+             ${finishedSets.length ? `<div class="live-sets-summary">${T('sets')} ${finishedSets.map((s) => `${Number(s.home) || 0}–${Number(s.away) || 0}`).join(', ')}</div>` : ''}
+             <div class="live-label">${T('games')}${maxSets > 1 ? ` · ${T('set')} ${finishedSets.length + 1}` : ''}</div>
              <div class="live-pad">
                <button class="pt" data-act="pt" data-side="home">+1</button>
                <div class="pt-score"><b>${hs}</b><span>–</span><b>${as}</b></div>
@@ -426,15 +446,23 @@ export function renderSheet(matchId, mode = 'quick', points) {
                <button class="btn ghost" data-act="undo">${T('undo')}</button>
                <button class="btn" data-act="finish">${T('saveScore')}</button>
              </div>`
-          : `<div class="quick">
-               <div class="quick-team quick-team-home">${sideName(m, 'home')}</div>
-               <div class="quick-inputs">
-                 <input type="number" inputmode="numeric" min="0" max="99" id="sc-home" placeholder="0" value="${hsInput}">
-                 <span class="quick-vs">–</span>
-                 <input type="number" inputmode="numeric" min="0" max="99" id="sc-away" placeholder="0" value="${asInput}">
-               </div>
-               <div class="quick-team quick-team-away">${sideName(m, 'away')}</div>
+          : `<div class="live-names">
+               <div class="live-name">${sideName(m, 'home')}</div>
+               <div class="live-name live-name-away">${sideName(m, 'away')}</div>
              </div>
+             ${Array.from({ length: maxSets }, (_, i) => {
+    const s = existingSets[i];
+    const hv = s ? (Number(s.home) || 0) : '';
+    const av = s ? (Number(s.away) || 0) : '';
+    return `<div class="quick-set">
+                 ${maxSets > 1 ? `<span class="quick-set-label">${T('set')} ${i + 1}</span>` : ''}
+                 <div class="quick-inputs">
+                   <input type="number" inputmode="numeric" min="0" max="99" id="sc-home-${i}" placeholder="0" value="${hv}">
+                   <span class="quick-vs">–</span>
+                   <input type="number" inputmode="numeric" min="0" max="99" id="sc-away-${i}" placeholder="0" value="${av}">
+                 </div>
+               </div>`;
+  }).join('')}
              <div class="sheet-actions">
                ${m.status === 'scheduled' ? `<button class="btn ghost start" data-act="start">${T('startMatch')}</button>` : ''}
                <button class="btn ghost" data-act="mode" data-mode="live">${T('liveScoring')}</button>
