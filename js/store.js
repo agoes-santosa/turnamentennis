@@ -429,11 +429,43 @@ export const store = {
     await this.persist();
   },
 
+  /**
+   * A completed match reopens to `in_progress` with every set it already
+   * played still intact -- undoing the final confirmation, not erasing the
+   * match, so fixing a mistake in the deciding set doesn't cost the sets
+   * that were already correct. An in_progress match (never confirmed
+   * complete) has no "final answer" to undo, so it reverts all the way to
+   * `scheduled` with the score cleared instead -- the "started by accident"
+   * case. To fix a mistake mid-match without losing earlier finished sets,
+   * see `resetCurrentSet` below.
+   */
   async reopen(matchId) {
     const m = this.state.matches.find((x) => x.id === matchId);
     if (!m) return;
-    m.status = 'scheduled'; m.score = null; m.winnerTeamId = null;
+    if (m.status === 'completed') {
+      m.status = 'in_progress';
+    } else {
+      m.status = 'scheduled';
+      m.score = null;
+    }
+    m.winnerTeamId = null;
     this.logEvent('reopen', m.label);
+    this.recompute();
+    await this.persist();
+  },
+
+  /**
+   * Clears just the set currently being played back to 0-0, leaving every
+   * earlier finished set (and the match's in_progress status) untouched --
+   * the courtside fix for "I mis-tapped a bunch of times in this set,"
+   * without forcing a redo of sets already decided.
+   */
+  async resetCurrentSet(matchId) {
+    const m = this.state.matches.find((x) => x.id === matchId);
+    if (!m || m.status !== 'in_progress') return;
+    const finished = (m.score?.sets ?? []).slice(0, -1);
+    m.score = { sets: [...finished, { home: 0, away: 0 }] };
+    this.logEvent('reset-set', m.label);
     this.recompute();
     await this.persist();
   },

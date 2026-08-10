@@ -407,12 +407,22 @@ export function renderSheet(matchId, mode = 'quick', points) {
     : '';
 
   // Reset covers two real situations: undoing a completed match to fix a
-  // mistake, and clearing an in-progress one a referee started by accident.
-  // Available to scorer or admin -- it's the courtside undo, not a
-  // structural change like skip.
+  // mistake (reopen() keeps every set already played -- only the final
+  // confirmation is undone), and clearing an in-progress one a referee
+  // started by accident. Once a multi-set match is past its first set,
+  // wiping the whole thing back to scheduled would also throw away sets
+  // that were already correct, so "Reset this set" (clears only the set in
+  // progress) becomes the primary action, with the full wipe demoted to a
+  // secondary "Reset whole match" for the rarer case. Available to scorer
+  // or admin -- it's the courtside undo, not a structural change like skip.
   const canReset = canScore && (m.status === 'completed' || m.status === 'in_progress');
+  const midMatch = m.status === 'in_progress' && finishedSets.length > 0;
   const resetRow = canReset
-    ? `<div class="sheet-actions"><button class="btn ghost reset" data-act="reopen">${m.status === 'completed' ? T('reopen') : T('resetMatch')}</button></div>`
+    ? `<div class="sheet-actions">
+         ${midMatch ? `<button class="btn ghost reset" data-act="reset-set">${T('resetSet')}</button>` : ''}
+         <button class="btn ghost ${midMatch ? 'reset-secondary' : 'reset'}" data-act="reopen">${
+    m.status === 'completed' ? T('reopen') : midMatch ? T('resetWholeMatch') : T('resetMatch')}</button>
+       </div>`
     : '';
 
   const body = m.status === 'skipped'
@@ -439,7 +449,9 @@ export function renderSheet(matchId, mode = 'quick', points) {
              <div class="live-label">${T('gamePoints')}</div>
              <div class="live-pad live-pad-points">
                <button class="pt pt-15" data-act="pt15" data-side="home">+15</button>
-               <div class="pt-score pt-score-points"><b>${points?.home ?? 0}</b><span>–</span><b>${points?.away ?? 0}</b></div>
+               <div class="pt-score pt-score-points" data-act="reset-points" role="button" tabindex="0" title="${T('resetPoints')}">
+                 <b>${points?.home ?? 0}</b><span>–</span><b>${points?.away ?? 0}</b>
+               </div>
                <button class="pt pt-15" data-act="pt15" data-side="away">+15</button>
              </div>
              <div class="sheet-actions">
