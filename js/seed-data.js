@@ -5,7 +5,7 @@
 
 import {
   buildRoundRobin, buildKnockout, buildRRPlayoffs, buildOrderOfPlay, uid,
-} from './engine.js?v=1';
+} from './engine.js?v=2';
 
 // The real roster. Order is seed order — pair 1 is the top seed, and for the
 // men's knockout that matters: with an odd count of pairs, the top seed gets
@@ -79,9 +79,9 @@ export function buildSeed() {
     // Info tab and any future admin UI can read the plan directly.
     blocks: [
       { divisionId: 'div_w', start: '07:00' },
-      { divisionId: 'div_m', start: '17:00' },
+      { divisionId: 'div_m', start: '16:00' },
     ],
-    // Hard constraint: the court closes at 21:00, so Men's (starting 17:00)
+    // Hard constraint: the court closes at 21:00, so Men's (starting 16:00)
     // must fit in that window. Checked below after scheduling.
     courtCloses: '21:00',
     // Local-mode only. Firebase mode stores hashes in a separate `pins`

@@ -8,21 +8,19 @@ progress, organizers unlock with a PIN and enter scores on the same page.
 | Division | Format | Pairs | Matches | Starts |
 |---|---|---|---|---|
 | Ganda Putri | Round robin + **optional** final | 4 | 6 required + 1 optional | 07:00 |
-| Ganda Putra | Knockout | 8 | 7 | 17:00 |
+| Ganda Putra | Knockout, best of 3 sets | 8 | 7 | 16:00 |
 
 **No 3rd-place match in either division** — there's no budget for a 3rd
 place prize (1st gets trophy + medal, 2nd gets medal only), so there's
 nothing left for that match to actually decide. Removing it also gave Men's
-back the 30 minutes of schedule slack it had lost when the roster grew to 8
-pairs: the final now ends at **20:30**, not exactly on the 21:00 court
-closing time with zero room for a delay.
+back 30 minutes of schedule slack: the final now ends at **19:30**, well
+inside the 21:00 court closing time.
 
 Women's plays to completion first (the 6 required group matches finish
-~10:30), then a long gap, then Men's runs 17:00 → **20:30**.
+~10:30), then a long gap, then Men's runs 16:00 → **19:30**.
 
-**Women's final is optional**, condensed to a quick 9-point decider
-(~10 min) if played at all — it would otherwise land right in the hottest
-part of late morning. The round-robin table is a legitimate result on its
+**Women's final is optional** — it would otherwise land right in the
+hottest part of late morning. The round-robin table is a legitimate result on its
 own: an admin can tap **Skip (optional)**, and the champion is then read
 straight off the standings instead (shown with a "(from standings)" note
 wherever it's displayed). See §4.6 of the PRD for why the standings are
@@ -199,8 +197,8 @@ something with higher stakes.
 
 - [x] Real player names in `js/seed-data.js` — 4 women's pairs, 8 men's pairs
 - [x] Men's final timing — resolved by dropping the 3rd-place match (no
-      budget for a 3rd place prize): the final now ends at 20:30, 30 minutes
-      inside the 21:00 court closing time, instead of landing exactly on it
+      budget for a 3rd place prize) and starting at 16:00 instead of 17:00:
+      the final now ends at 19:30, well inside the 21:00 court closing time
 - [ ] Confirm the date — 17 Aug 2026 is assumed from "17-an"
 - [ ] Fill in the venue name, address, and Google Maps link (also in
       `seed-data.js`, or added later once an in-app admin editor exists)
@@ -306,7 +304,7 @@ or from Node, which is exactly what `seed.mjs` does with `buildSeed()`.
   (`unresolvedLabel()`) for an undecided slot, so "Winner QF1" reads the same
   wherever it shows up.
 - **Order of play** runs as sequential blocks (`tournament.blocks` in
-  `js/seed-data.js` — currently Women's at 07:00, then Men's at 17:00), each
+  `js/seed-data.js` — currently Women's at 07:00, then Men's at 16:00), each
   with its own start clock. Within a block, knockout dependencies are
   respected and a pair is never scheduled into two consecutive slots unless
   that's mathematically unavoidable (see the 4-team round robin note above),
