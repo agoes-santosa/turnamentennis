@@ -1,12 +1,12 @@
 // app.js — bootstrap, tab routing, and event delegation.
 
-import { store, exportSeedJson } from './store.js?v=1';
-import { makeT } from './i18n.js?v=1';
-import { setsWon } from './engine.js?v=1';
+import { store, exportSeedJson } from './store.js?v=2';
+import { makeT } from './i18n.js?v=2';
+import { setsWon } from './engine.js?v=2';
 import {
   renderHeader, renderNowOnCourt, renderDivision,
   renderInfo, renderSheet, renderPin,
-} from './ui.js?v=1';
+} from './ui.js?v=2';
 
 const app = document.getElementById('app');
 const layer = document.getElementById('layer');
@@ -25,7 +25,7 @@ const ui = {
 function tabs() {
   const T = makeT(store.lang);
   // Info first (read this before anything else), then divisions in the order
-  // they're actually played -- Women's (07:00), then Men's (17:00).
+  // they're actually played -- Women's (07:00), then Men's (16:00).
   const items = [
     { key: 'info', label: T('info') },
     ...store.state.divisions.map((d) => ({

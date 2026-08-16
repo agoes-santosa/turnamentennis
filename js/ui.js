@@ -1,9 +1,9 @@
 // ui.js — render functions. Each returns an HTML string; app.js wires events
 // through delegation, so re-rendering is always safe.
 
-import { store, summarise } from './store.js?v=1';
-import { makeT } from './i18n.js?v=1';
-import { STAGE, stageRank, setsWon } from './engine.js?v=1';
+import { store, summarise } from './store.js?v=2';
+import { makeT } from './i18n.js?v=2';
+import { STAGE, stageRank, setsWon } from './engine.js?v=2';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
