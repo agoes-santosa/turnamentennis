@@ -1,9 +1,9 @@
 // ui.js — render functions. Each returns an HTML string; app.js wires events
 // through delegation, so re-rendering is always safe.
 
-import { store, summarise } from './store.js?v=2';
-import { makeT } from './i18n.js?v=2';
-import { STAGE, stageRank, setsWon } from './engine.js?v=2';
+import { store, summarise } from './store.js?v=3';
+import { makeT } from './i18n.js?v=3';
+import { STAGE, stageRank, setsWon } from './engine.js?v=3';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -355,7 +355,10 @@ export function renderInfo() {
         <dt>${T('court')}</dt><dd>${tn.courts}</dd>
         <dt>${T('schedule')}</dt><dd>${(tn.blocks ?? []).map((b) => {
     const bd = store.division(b.divisionId);
-    return `${esc(bd?.name[store.lang] ?? bd?.name.en ?? '')} ${T('startsAt')} ${esc(b.start)}`;
+    const label = `${esc(bd?.name[store.lang] ?? bd?.name.en ?? '')} ${T('startsAt')} ${esc(b.start)}`;
+    return store.role === 'admin'
+      ? `<span class="sched-row">${label} <button class="edit-sched-btn" data-act="edit-schedule" data-division="${b.divisionId}">${T('edit')}</button></span>`
+      : label;
   }).join(' · ')} · ${tn.slotMinutes} min/${id ? 'partai' : 'match'}</dd>
       </dl>
     </section>
@@ -524,6 +527,37 @@ export function renderPin(error) {
       <div class="sheet-actions">
         <button class="btn ghost" data-act="close-sheet">${T('cancel')}</button>
         <button class="btn" data-act="submit-pin">${T('unlock')}</button>
+      </div>
+    </div>`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Edit schedule modal (admin only)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Once any match in the division has actually begun, `_reflowDivision`
+ * anchors that division's pending matches to the real last-known time
+ * instead of the block's configured start (see store.js's updateBlockStart)
+ * -- so editing the start time here would silently do nothing visible.
+ * Warned about up front rather than discovered after a confusing no-op save.
+ */
+export function renderEditSchedule(divisionId, error) {
+  const T = t();
+  const div = store.division(divisionId);
+  const block = store.state.tournament.blocks?.find((b) => b.divisionId === divisionId);
+  const started = store.matchesOf(divisionId).some((m) => m.status !== 'scheduled' && !m.isBye);
+  return `
+    <div class="sheet-backdrop" data-act="close-sheet"></div>
+    <div class="sheet sheet-pin" role="dialog" aria-modal="true">
+      <div class="sheet-grip"></div>
+      <h2>${T('editSchedule')} · ${esc(div?.short[store.lang] ?? div?.short.en ?? '')}</h2>
+      ${started ? `<p class="sheet-note">${T('scheduleEditStartedWarning')}</p>` : ''}
+      <input class="pin-input sched-time-input" type="time" id="schedule-start-input" value="${esc(block?.start ?? '')}">
+      ${error ? `<p class="pin-error">${esc(error)}</p>` : ''}
+      <div class="sheet-actions">
+        <button class="btn ghost" data-act="close-sheet">${T('cancel')}</button>
+        <button class="btn" data-act="save-schedule" data-division="${divisionId}">${T('save')}</button>
       </div>
     </div>`;
 }
