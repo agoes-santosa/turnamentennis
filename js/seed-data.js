@@ -5,7 +5,7 @@
 
 import {
   buildRoundRobin, buildKnockout, buildRRPlayoffs, buildOrderOfPlay, uid,
-} from './engine.js?v=2';
+} from './engine.js?v=3';
 
 // The real roster. Order is seed order — pair 1 is the top seed, and for the
 // men's knockout that matters: with an odd count of pairs, the top seed gets

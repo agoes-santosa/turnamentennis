@@ -223,6 +223,11 @@ table { border-collapse: collapse; width: 100%; }
 .info-list { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; font-size: 14px; }
 .info-list dt { color: var(--ink-3); }
 .info-list dd { margin: 0; }
+.sched-row { display: inline-flex; align-items: center; gap: 6px; }
+.edit-sched-btn {
+  border: 1px solid var(--line); border-radius: 999px; background: transparent;
+  color: var(--accent); font-size: 11px; font-weight: 700; padding: 2px 9px; min-height: 0;
+}
 .info-divs { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
 .info-div { border-left: 3px solid var(--c); padding-left: 10px; min-width: 0; }
 .info-div h3 { margin: 0 0 4px; font-size: 14px; }
@@ -339,6 +344,7 @@ table { border-collapse: collapse; width: 100%; }
   background: var(--bg-3); border: 1px solid var(--line); border-radius: 12px; color: var(--ink);
 }
 .pin-error { color: var(--live); font-size: 13px; margin: 8px 0 0; }
+.sched-time-input { letter-spacing: normal; font-size: 22px; }
 
 .toast {
   position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); left: 50%;

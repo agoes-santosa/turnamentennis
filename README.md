@@ -154,7 +154,7 @@ that module (each with its own top-level state) instead of sharing one.
 
 | PIN | Who gets it | Can do |
 |---|---|---|
-| Admin | You | Everything the app currently supports write access for |
+| Admin | You | Everything the app currently supports write access for — including editing a division's start time on the Info tab (tap **Ubah**/**Edit** next to it) if the day's schedule needs to shift, no code push required |
 | Scorer | Whoever runs the court | Enter and fix scores only |
 
 Set at seed time (`node seed.mjs --admin-pin=... --scorer-pin=...`). Hand out

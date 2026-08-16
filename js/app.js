@@ -1,20 +1,21 @@
 // app.js — bootstrap, tab routing, and event delegation.
 
-import { store, exportSeedJson } from './store.js?v=2';
-import { makeT } from './i18n.js?v=2';
-import { setsWon } from './engine.js?v=2';
+import { store, exportSeedJson } from './store.js?v=3';
+import { makeT } from './i18n.js?v=3';
+import { setsWon } from './engine.js?v=3';
 import {
   renderHeader, renderNowOnCourt, renderDivision,
-  renderInfo, renderSheet, renderPin,
-} from './ui.js?v=2';
+  renderInfo, renderSheet, renderPin, renderEditSchedule,
+} from './ui.js?v=3';
 
 const app = document.getElementById('app');
 const layer = document.getElementById('layer');
 
 const ui = {
   tab: new URLSearchParams(location.search).get('tab') || 'info',
-  sheet: null,          // { type:'match'|'pin', id?, mode? }
+  sheet: null,          // { type:'match'|'pin'|'edit-schedule', id?, mode?, divisionId? }
   pinError: null,
+  scheduleError: null,
   attempts: 0,
   lockedUntil: 0,
   toast: null,
@@ -53,7 +54,9 @@ function render() {
   app.innerHTML = renderHeader() + renderNowOnCourt() + tabs() + `<main class="main">${body()}</main>`;
 
   layer.innerHTML = ui.sheet
-    ? (ui.sheet.type === 'pin' ? renderPin(ui.pinError) : renderSheet(ui.sheet.id, ui.sheet.mode, ui.sheet.points))
+    ? ui.sheet.type === 'pin' ? renderPin(ui.pinError)
+      : ui.sheet.type === 'edit-schedule' ? renderEditSchedule(ui.sheet.divisionId, ui.scheduleError)
+        : renderSheet(ui.sheet.id, ui.sheet.mode, ui.sheet.points)
     : '';
   layer.hidden = !ui.sheet;
 
@@ -110,7 +113,29 @@ const actions = {
 
   lock() { store.lock(); },
 
-  'close-sheet'() { ui.sheet = null; ui.pinError = null; render(); },
+  'close-sheet'() { ui.sheet = null; ui.pinError = null; ui.scheduleError = null; render(); },
+
+  'edit-schedule'(el) {
+    ui.sheet = { type: 'edit-schedule', divisionId: el.dataset.division };
+    ui.scheduleError = null;
+    render();
+  },
+
+  async 'save-schedule'(el) {
+    const val = document.getElementById('schedule-start-input')?.value;
+    if (!val || !/^\d{2}:\d{2}$/.test(val)) {
+      ui.scheduleError = store.lang === 'id' ? 'Waktu tidak valid' : 'Invalid time';
+      return render();
+    }
+    const result = await store.updateBlockStart(el.dataset.division, val);
+    ui.sheet = null;
+    render();
+    if (result?.overCourtClose) {
+      toast(store.lang === 'id'
+        ? `Perhatian: pertandingan terakhir sekarang berakhir ${result.lastEndHHMM}, setelah lapangan tutup (${store.state.tournament.courtCloses}).`
+        : `Heads up: the last match now ends ${result.lastEndHHMM}, after the court closes (${store.state.tournament.courtCloses}).`);
+    }
+  },
 
   async 'submit-pin'() {
     const T = makeT(store.lang);

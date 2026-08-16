@@ -6,9 +6,9 @@
 
 import {
   propagate, seedRRPlayoffs, standings, reflowDivision, fmt, STAGE, uid, setsWon,
-} from './engine.js?v=2';
-import { buildSeed } from './seed-data.js?v=2';
-import { FIREBASE } from './config.js?v=2';
+} from './engine.js?v=3';
+import { buildSeed } from './seed-data.js?v=3';
+import { FIREBASE } from './config.js?v=3';
 
 const KEY = 'casman17.v1';
 
@@ -484,6 +484,36 @@ export const store = {
     this.logEvent('skip', m.label);
     this.recompute();
     await this.persist();
+  },
+
+  /**
+   * Change one division's block start time (e.g. "Men's now starts 16:00,
+   * not 17:00") from the app itself, for whenever this needs to happen on
+   * the day rather than by editing seed-data.js and re-running seed.mjs.
+   * Reflows that division's still-`scheduled` matches from the new start --
+   * same mechanism `_reflowDivision` already uses after any score change,
+   * just triggered by an edited start time instead. Once any match in the
+   * division has actually begun, the real in-progress/completed times take
+   * over as the reflow's anchor (see `_reflowDivision`/`reflowDivision`) and
+   * this stops moving anything -- `renderEditSchedule` warns about that
+   * case before the admin even tries.
+   */
+  async updateBlockStart(divisionId, start) {
+    const block = this.state.tournament.blocks?.find((b) => b.divisionId === divisionId);
+    if (!block) return { ok: false };
+    block.start = start;
+    this._reflowDivision(divisionId);
+    this.logEvent('reschedule', `${divisionId} -> ${start}`);
+    this.recompute();
+    await this.persist();
+
+    const divMatches = this.matchesOf(divisionId).filter((m) => !m.isBye && m.startTime);
+    const lastEnd = divMatches.length
+      ? Math.max(...divMatches.map((m) => fmt.toMin(m.startTime) + this.state.tournament.slotMinutes))
+      : -Infinity;
+    const closesAt = this.state.tournament.courtCloses;
+    const overCourtClose = !!closesAt && Number.isFinite(lastEnd) && lastEnd > fmt.toMin(closesAt);
+    return { ok: true, overCourtClose, lastEndHHMM: Number.isFinite(lastEnd) ? fmt.toHHMM(lastEnd) : null };
   },
 
   async unskip(matchId) {
