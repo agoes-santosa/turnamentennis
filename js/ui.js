@@ -1,9 +1,9 @@
 // ui.js — render functions. Each returns an HTML string; app.js wires events
 // through delegation, so re-rendering is always safe.
 
-import { store, summarise } from './store.js?v=3';
-import { makeT } from './i18n.js?v=3';
-import { STAGE, stageRank, setsWon } from './engine.js?v=3';
+import { store, summarise } from './store.js?v=4';
+import { makeT } from './i18n.js?v=4';
+import { STAGE, stageRank, setsWon } from './engine.js?v=4';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -169,9 +169,57 @@ export function renderNowOnCourt() {
 
 export function renderDivision(divisionId) {
   const div = store.division(divisionId);
-  return div.format === 'round_robin'
+  const rest = div.format === 'round_robin'
     ? renderStandings(divisionId) + renderMatchList(divisionId)
     : renderBracket(divisionId) + renderMatchList(divisionId);
+  return renderPodium(divisionId) + rest;
+}
+
+/**
+ * Champion + runner-up, shown automatically once a division has a decided
+ * winner (store.championOf) -- no separate navigation needed, and no third
+ * place, since neither division plays one (see seed-data.js's
+ * thirdPlace: false on both). Each spot is a pair, not a single player, so
+ * both players get their own small avatar circle rather than the one-letter
+ * avatar a singles view would use.
+ */
+function renderPodium(divisionId) {
+  const champ = store.championOf(divisionId);
+  if (!champ) return '';
+  const T = t();
+  const div = store.division(divisionId);
+  const runnerUp = store.runnerUpOf(divisionId);
+
+  const spot = (teamId, rank) => {
+    if (!teamId) return '';
+    const team = store.state.teams.find((x) => x.id === teamId);
+    const p1 = store.player(team?.player1Id)?.name ?? '?';
+    const p2 = store.player(team?.player2Id)?.name ?? '?';
+    const label = rank === 1 ? T('champion') : T('runnerUp');
+    const medal = rank === 1 ? '🥇' : '🥈';
+    return `<div class="podium-spot rank-${rank}">
+        <div class="podium-avatars">
+          <span class="podium-avatar">${esc((p1[0] ?? '?').toUpperCase())}</span>
+          <span class="podium-avatar">${esc((p2[0] ?? '?').toUpperCase())}</span>
+        </div>
+        <div class="podium-name">${esc(p1)}<br>${esc(p2)}</div>
+        <span class="podium-rank-label">${label}</span>
+        <div class="podium-medal-box">${medal}</div>
+      </div>`;
+  };
+
+  return `<section class="card podium-card" style="--c:${div.colour}">
+      <div class="podium-head">
+        <span class="podium-trophy">🏆</span>
+        <h2 class="card-title">${esc(div.name[store.lang] ?? div.name.en)}</h2>
+      </div>
+      <div class="podium-stand">
+        ${spot(runnerUp?.teamId, 2)}
+        ${spot(champ.teamId, 1)}
+      </div>
+      ${champ.viaStandings ? `<p class="card-note">${store.lang === 'id'
+    ? 'Juara dari klasemen — final dilewati.' : 'Champion from standings — final was skipped.'}</p>` : ''}
+    </section>`;
 }
 
 function renderStandings(divisionId) {
