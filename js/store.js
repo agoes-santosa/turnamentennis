@@ -6,9 +6,9 @@
 
 import {
   propagate, seedRRPlayoffs, standings, reflowDivision, fmt, STAGE, uid, setsWon,
-} from './engine.js?v=4';
-import { buildSeed } from './seed-data.js?v=4';
-import { FIREBASE } from './config.js?v=4';
+} from './engine.js?v=5';
+import { buildSeed } from './seed-data.js?v=5';
+import { FIREBASE } from './config.js?v=5';
 
 const KEY = 'casman17.v1';
 

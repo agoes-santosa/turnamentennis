@@ -1,9 +1,9 @@
 // ui.js — render functions. Each returns an HTML string; app.js wires events
 // through delegation, so re-rendering is always safe.
 
-import { store, summarise } from './store.js?v=4';
-import { makeT } from './i18n.js?v=4';
-import { STAGE, stageRank, setsWon } from './engine.js?v=4';
+import { store, summarise } from './store.js?v=5';
+import { makeT } from './i18n.js?v=5';
+import { STAGE, stageRank, setsWon } from './engine.js?v=5';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -217,8 +217,6 @@ function renderPodium(divisionId) {
         ${spot(runnerUp?.teamId, 2)}
         ${spot(champ.teamId, 1)}
       </div>
-      ${champ.viaStandings ? `<p class="card-note">${store.lang === 'id'
-    ? 'Juara dari klasemen — final dilewati.' : 'Champion from standings — final was skipped.'}</p>` : ''}
     </section>`;
 }
 
