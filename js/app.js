@@ -1,12 +1,12 @@
 // app.js — bootstrap, tab routing, and event delegation.
 
-import { store, exportSeedJson } from './store.js?v=3';
-import { makeT } from './i18n.js?v=3';
-import { setsWon } from './engine.js?v=3';
+import { store, exportSeedJson } from './store.js?v=4';
+import { makeT } from './i18n.js?v=4';
+import { setsWon } from './engine.js?v=4';
 import {
   renderHeader, renderNowOnCourt, renderDivision,
   renderInfo, renderSheet, renderPin, renderEditSchedule,
-} from './ui.js?v=3';
+} from './ui.js?v=4';
 
 const app = document.getElementById('app');
 const layer = document.getElementById('layer');

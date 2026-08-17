@@ -6,9 +6,9 @@
 
 import {
   propagate, seedRRPlayoffs, standings, reflowDivision, fmt, STAGE, uid, setsWon,
-} from './engine.js?v=3';
-import { buildSeed } from './seed-data.js?v=3';
-import { FIREBASE } from './config.js?v=3';
+} from './engine.js?v=4';
+import { buildSeed } from './seed-data.js?v=4';
+import { FIREBASE } from './config.js?v=4';
 
 const KEY = 'casman17.v1';
 
@@ -303,6 +303,28 @@ export const store = {
     if (fin.optional && fin.status === 'skipped' && div?.format === 'round_robin') {
       const top = this.standingsOf(divisionId)[0];
       return top ? { teamId: top.teamId, viaStandings: true } : null;
+    }
+    return null;
+  },
+
+  /**
+   * The other podium spot -- whoever the champion actually beat (if the
+   * final was played) or #2 in the table (if it was skipped and the
+   * champion came from standings instead). Null whenever championOf() is,
+   * since there's no runner-up without a decided champion.
+   */
+  runnerUpOf(divisionId) {
+    const champ = this.championOf(divisionId);
+    if (!champ) return null;
+    const div = this.division(divisionId);
+    const fin = this.matchesOf(divisionId).find((m) => m.stage === STAGE.F);
+    if (fin?.status === 'completed' && fin.winnerTeamId) {
+      const loserId = fin.homeTeamId === fin.winnerTeamId ? fin.awayTeamId : fin.homeTeamId;
+      return loserId ? { teamId: loserId } : null;
+    }
+    if (champ.viaStandings && div?.format === 'round_robin') {
+      const second = this.standingsOf(divisionId)[1];
+      return second ? { teamId: second.teamId } : null;
     }
     return null;
   },
